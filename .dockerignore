@@ -1,0 +1,9 @@
+node_modules
+.next
+.env
+.env.local
+.git
+README.md
+Dockerfile*
+docker-compose.yml
+drizzle
