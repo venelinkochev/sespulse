@@ -48,6 +48,16 @@ const hasLifecycleEvent = sql`EXISTS (
     )
 )`;
 
+// Multi-recipient sends can produce a Delivery event for one recipient AND
+// a Bounce/Complaint/Reject for another, on the same SES messageId. To keep
+// delivery + bounce + complaint summing cleanly to 100%, classify such a
+// message as bounced/complained/rejected, not delivered.
+const hasFailure = sql`EXISTS (
+  SELECT 1 FROM events ef
+  WHERE ef.message_id = m.message_id
+    AND ef.event_type IN ('Bounce','Complaint','Reject')
+)`;
+
 export async function getOverview(range: Range): Promise<OverviewStats> {
   const interval = intervalFor(range);
   const rows = await db.execute<{
@@ -72,7 +82,7 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
     SELECT
       (SELECT COUNT(*) FROM msgs)::text AS sent,
       (SELECT COALESCE(SUM(COALESCE(array_length(to_addresses, 1), 0)), 0) FROM msgs)::text AS recipients,
-      COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' THEN m.message_id END) AS delivered,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' AND NOT ${hasFailure} THEN m.message_id END) AS delivered,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' THEN m.message_id END) AS bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Permanent' THEN m.message_id END) AS hard_bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Transient' THEN m.message_id END) AS soft_bounced,
@@ -161,7 +171,7 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
     SELECT
       m.from_domain AS domain,
       COUNT(DISTINCT m.message_id) AS sent,
-      COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' THEN m.message_id END) AS delivered,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' AND NOT ${hasFailure} THEN m.message_id END) AS delivered,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' THEN m.message_id END) AS bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Permanent' THEN m.message_id END) AS hard_bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Transient' THEN m.message_id END) AS soft_bounced,
@@ -339,7 +349,7 @@ export async function getTimeSeries(range: Range): Promise<TimeSeriesPoint[]> {
       SELECT
         date_trunc(${bucket}, m.sent_at) AS bucket,
         COUNT(DISTINCT m.message_id) AS sent,
-        COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' THEN m.message_id END) AS delivered,
+        COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' AND NOT ${hasFailure} THEN m.message_id END) AS delivered,
         COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' THEN m.message_id END) AS bounced
       FROM messages m
       LEFT JOIN events e ON e.message_id = m.message_id
