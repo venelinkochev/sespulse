@@ -30,6 +30,21 @@ function intervalFor(range: Range): string {
   }
 }
 
+// A message only counts as "sent" if we captured at least one delivery-
+// lifecycle event for it (Send, Delivery, Bounce, Complaint, Reject,
+// RenderingFailure, DeliveryDelay). Open and Click are recipient actions
+// and can arrive long after SESPulse came online — for messages we never
+// saw the Send/Delivery for, counting them would inflate "sent" and push
+// open-rate above 100%. This filter is applied to every aggregate query
+// so all metrics share the same denominator.
+const hasLifecycleEvent = sql`EXISTS (
+  SELECT 1 FROM events e2
+  WHERE e2.message_id = m.message_id
+    AND e2.event_type IN (
+      'Send','Delivery','Bounce','Complaint','Reject','RenderingFailure','DeliveryDelay'
+    )
+)`;
+
 export async function getOverview(range: Range): Promise<OverviewStats> {
   const interval = intervalFor(range);
   const rows = await db.execute<{
@@ -43,9 +58,10 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
     rejected: string;
   }>(sql`
     WITH msgs AS (
-      SELECT message_id, to_addresses
-      FROM messages
-      WHERE sent_at >= NOW() - (${interval})::interval
+      SELECT m.message_id, m.to_addresses
+      FROM messages m
+      WHERE m.sent_at >= NOW() - (${interval})::interval
+        AND ${hasLifecycleEvent}
     )
     SELECT
       (SELECT COUNT(*) FROM msgs)::text AS sent,
@@ -131,6 +147,7 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
     FROM messages m
     LEFT JOIN events e ON e.message_id = m.message_id
     WHERE m.sent_at >= NOW() - (${interval})::interval
+      AND ${hasLifecycleEvent}
     GROUP BY m.from_domain
     ORDER BY sent DESC
   `);
@@ -281,6 +298,7 @@ export async function getTimeSeries(range: Range): Promise<TimeSeriesPoint[]> {
       FROM messages m
       LEFT JOIN events e ON e.message_id = m.message_id
       WHERE m.sent_at >= NOW() - (${interval})::interval
+        AND ${hasLifecycleEvent}
       GROUP BY 1
     )
     SELECT
