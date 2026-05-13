@@ -1,12 +1,22 @@
 import Link from "next/link";
 import { isAuthEnabled } from "@/lib/session";
 import { logoutAction } from "../login/actions";
+import { AutoRefresh } from "@/components/AutoRefresh";
+
+function refreshIntervalMs(): number {
+  const raw = process.env.DASHBOARD_REFRESH_SECONDS;
+  if (raw === undefined || raw === "") return 60_000;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 60_000;
+  return Math.round(n * 1000);
+}
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const refreshMs = refreshIntervalMs();
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 border-r border-border bg-bg-subtle p-5 flex flex-col">
@@ -21,9 +31,11 @@ export default function DashboardLayout({
           <NavLink href="/domains" label="Domains" />
           <NavLink href="/logs" label="Email Logs" />
         </nav>
-        <div className="mt-10 text-xs text-fg-subtle">
-          <p>Polling SQS for SES events.</p>
-        </div>
+        {refreshMs > 0 && (
+          <div className="mt-10">
+            <AutoRefresh intervalMs={refreshMs} disabledOn={["/logs"]} />
+          </div>
+        )}
         {isAuthEnabled() && (
           <form action={logoutAction} className="mt-auto pt-6">
             <button

@@ -43,6 +43,7 @@ so you can answer questions like:
   Click, Reject, RenderingFailure, DeliveryDelay
 - **At-least-once ingestion** — deduplicates by SNS `MessageId`, survives
   worker restarts
+- **Live updates** — the UI refetches every 30 seconds while the tab is open (paused when backgrounded), so you can leave the dashboard up during an incident
 - **One-command deploy** — `docker compose up -d --build`
 
 ## Architecture: why SQS instead of a webhook?
@@ -164,9 +165,44 @@ All config is environment variables — see [`.env.example`](.env.example):
 | `DASHBOARD_USER` | no | If set with `DASHBOARD_PASSWORD`, the dashboard requires sign-in via a login page |
 | `DASHBOARD_PASSWORD` | no | Paired with `DASHBOARD_USER` |
 | `SESSION_SECRET` | no | HMAC secret for the session cookie. Falls back to `DASHBOARD_PASSWORD`; set to a long random string in production |
+| `DASHBOARD_REFRESH_SECONDS` | no | Auto-refresh interval for Overview and Domains pages (default `60`, set to `0` to disable). Email Logs never auto-refresh |
 
 ¹ Not required if SESPulse runs in AWS with an attached IAM role (EC2,
 ECS, EKS) — the SDK will pick up role credentials automatically.
+
+## Upgrading
+
+To pull the latest changes and rebuild:
+
+```sh
+cd /path/to/sespulse
+git pull
+docker compose up -d --build
+```
+
+The `migrate` service runs on startup and applies any new schema changes
+automatically. To watch the new containers start:
+
+```sh
+docker compose logs -f
+```
+
+If you've only changed environment variables in `.env` (no code changes),
+recreate the affected containers without a rebuild:
+
+```sh
+docker compose up -d
+```
+
+If something breaks and you want a clean rebuild from scratch:
+
+```sh
+docker compose down
+docker compose up -d --build
+```
+
+This keeps the `ses_db` volume (your event history) intact. Add `-v` to
+`docker compose down` only if you actually want to wipe stored events.
 
 ## Data model
 
