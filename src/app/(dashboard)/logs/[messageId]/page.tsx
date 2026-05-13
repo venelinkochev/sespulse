@@ -45,7 +45,7 @@ export default async function MessagePage({
               className="rounded-lg border border-border bg-bg-card p-4 flex items-start gap-4"
             >
               <div className="pt-0.5">
-                <EventBadge type={e.event_type} />
+                <EventBadge type={e.event_type} bounceType={e.bounce_type} />
               </div>
               <div className="flex-1 text-sm">
                 <div className="text-fg-muted text-xs">
@@ -53,8 +53,16 @@ export default async function MessagePage({
                 </div>
                 {e.bounce_type && (
                   <div className="mt-1">
-                    Bounce: <span className="text-fg">{e.bounce_type}</span>
-                    {e.bounce_sub_type && ` / ${e.bounce_sub_type}`}
+                    {e.bounce_type === "Permanent"
+                      ? "Hard bounce"
+                      : e.bounce_type === "Transient"
+                        ? "Soft bounce"
+                        : "Bounce"}
+                    <span className="text-fg-subtle">
+                      {" · "}
+                      {e.bounce_type}
+                      {e.bounce_sub_type && ` / ${e.bounce_sub_type}`}
+                    </span>
                   </div>
                 )}
                 {e.complaint_feedback_type && (

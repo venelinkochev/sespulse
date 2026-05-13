@@ -6,6 +6,9 @@ export interface OverviewStats {
   recipientCount: number;
   delivered: number;
   bounced: number;
+  hardBounced: number;
+  softBounced: number;
+  undeterminedBounced: number;
   complained: number;
   opened: number;
   clicked: number;
@@ -52,6 +55,9 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
     recipients: string;
     delivered: string;
     bounced: string;
+    hard_bounced: string;
+    soft_bounced: string;
+    undetermined_bounced: string;
     complained: string;
     opened: string;
     clicked: string;
@@ -68,6 +74,9 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
       (SELECT COALESCE(SUM(COALESCE(array_length(to_addresses, 1), 0)), 0) FROM msgs)::text AS recipients,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' THEN m.message_id END) AS delivered,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' THEN m.message_id END) AS bounced,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Permanent' THEN m.message_id END) AS hard_bounced,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Transient' THEN m.message_id END) AS soft_bounced,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND (e.bounce_type IS NULL OR e.bounce_type = 'Undetermined') THEN m.message_id END) AS undetermined_bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Complaint' THEN m.message_id END) AS complained,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Open' THEN m.message_id END) AS opened,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Click' THEN m.message_id END) AS clicked,
@@ -81,6 +90,9 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
     recipients: "0",
     delivered: "0",
     bounced: "0",
+    hard_bounced: "0",
+    soft_bounced: "0",
+    undetermined_bounced: "0",
     complained: "0",
     opened: "0",
     clicked: "0",
@@ -90,6 +102,9 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
   const recipientCount = Number(r.recipients);
   const delivered = Number(r.delivered);
   const bounced = Number(r.bounced);
+  const hardBounced = Number(r.hard_bounced);
+  const softBounced = Number(r.soft_bounced);
+  const undeterminedBounced = Number(r.undetermined_bounced);
   const complained = Number(r.complained);
   const opened = Number(r.opened);
   const clicked = Number(r.clicked);
@@ -100,6 +115,9 @@ export async function getOverview(range: Range): Promise<OverviewStats> {
     recipientCount,
     delivered,
     bounced,
+    hardBounced,
+    softBounced,
+    undeterminedBounced,
     complained,
     opened,
     clicked,
@@ -117,6 +135,8 @@ export interface DomainRow {
   sent: number;
   delivered: number;
   bounced: number;
+  hardBounced: number;
+  softBounced: number;
   complained: number;
   opened: number;
   clicked: number;
@@ -132,6 +152,8 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
     sent: string;
     delivered: string;
     bounced: string;
+    hard_bounced: string;
+    soft_bounced: string;
     complained: string;
     opened: string;
     clicked: string;
@@ -141,6 +163,8 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
       COUNT(DISTINCT m.message_id) AS sent,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Delivery' THEN m.message_id END) AS delivered,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' THEN m.message_id END) AS bounced,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Permanent' THEN m.message_id END) AS hard_bounced,
+      COUNT(DISTINCT CASE WHEN e.event_type = 'Bounce' AND e.bounce_type = 'Transient' THEN m.message_id END) AS soft_bounced,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Complaint' THEN m.message_id END) AS complained,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Open' THEN m.message_id END) AS opened,
       COUNT(DISTINCT CASE WHEN e.event_type = 'Click' THEN m.message_id END) AS clicked
@@ -156,6 +180,8 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
     const sent = Number(r.sent);
     const delivered = Number(r.delivered);
     const bounced = Number(r.bounced);
+    const hardBounced = Number(r.hard_bounced);
+    const softBounced = Number(r.soft_bounced);
     const complained = Number(r.complained);
     const opened = Number(r.opened);
     const clicked = Number(r.clicked);
@@ -165,6 +191,8 @@ export async function getDomainStats(range: Range): Promise<DomainRow[]> {
       sent,
       delivered,
       bounced,
+      hardBounced,
+      softBounced,
       complained,
       opened,
       clicked,
@@ -184,6 +212,7 @@ export interface LogRow {
   sentAt: Date;
   lastEventType: string | null;
   lastEventAt: Date | null;
+  lastBounceType: string | null;
 }
 
 export async function getLogs(params: {
@@ -206,18 +235,34 @@ export async function getLogs(params: {
     sent_at: string;
     last_event_type: string | null;
     last_event_at: string | null;
+    last_bounce_type: string | null;
   }>(sql`
-    SELECT message_id, from_address, from_domain, to_addresses, subject, sent_at, last_event_type, last_event_at
-    FROM messages
-    WHERE (${domain}::text IS NULL OR from_domain = ${domain})
-      AND (${eventType}::text IS NULL OR last_event_type = ${eventType})
+    SELECT
+      m.message_id,
+      m.from_address,
+      m.from_domain,
+      m.to_addresses,
+      m.subject,
+      m.sent_at,
+      m.last_event_type,
+      m.last_event_at,
+      CASE WHEN m.last_event_type = 'Bounce' THEN (
+        SELECT e.bounce_type
+        FROM events e
+        WHERE e.message_id = m.message_id AND e.event_type = 'Bounce'
+        ORDER BY e.occurred_at DESC
+        LIMIT 1
+      ) END AS last_bounce_type
+    FROM messages m
+    WHERE (${domain}::text IS NULL OR m.from_domain = ${domain})
+      AND (${eventType}::text IS NULL OR m.last_event_type = ${eventType})
       AND (
         ${q}::text IS NULL
-        OR subject ILIKE ${q}
-        OR from_address ILIKE ${q}
-        OR EXISTS (SELECT 1 FROM unnest(to_addresses) addr WHERE addr ILIKE ${q})
+        OR m.subject ILIKE ${q}
+        OR m.from_address ILIKE ${q}
+        OR EXISTS (SELECT 1 FROM unnest(m.to_addresses) addr WHERE addr ILIKE ${q})
       )
-    ORDER BY sent_at DESC
+    ORDER BY m.sent_at DESC
     LIMIT ${limit}
   `);
 
@@ -230,6 +275,7 @@ export async function getLogs(params: {
     sentAt: new Date(r.sent_at),
     lastEventType: r.last_event_type,
     lastEventAt: r.last_event_at ? new Date(r.last_event_at) : null,
+    lastBounceType: r.last_bounce_type,
   }));
 }
 

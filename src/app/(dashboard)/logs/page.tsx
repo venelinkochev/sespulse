@@ -160,7 +160,7 @@ export default async function LogsPage({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <EventBadge type={r.lastEventType} />
+                  <EventBadge type={r.lastEventType} bounceType={r.lastBounceType} />
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Link

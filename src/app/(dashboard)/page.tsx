@@ -1,4 +1,9 @@
-import { getOverview, getTimeSeries, type Range } from "@/lib/queries";
+import {
+  getOverview,
+  getTimeSeries,
+  type OverviewStats,
+  type Range,
+} from "@/lib/queries";
 import { estimateCost, formatCost, pricePerEmail } from "@/lib/pricing";
 import { StatCard } from "@/components/StatCard";
 import { RangeTabs } from "@/components/RangeTabs";
@@ -13,6 +18,19 @@ function parseRange(v: string | string[] | undefined): Range {
 
 const fmt = (n: number) => n.toLocaleString();
 const pct = (n: number) => `${n.toFixed(2)}%`;
+
+function bounceSublabel(stats: OverviewStats): string {
+  if (stats.bounced === 0) return "0 bounced";
+  const parts = [
+    `${fmt(stats.bounced)} bounced`,
+    `${fmt(stats.hardBounced)} hard`,
+    `${fmt(stats.softBounced)} soft`,
+  ];
+  if (stats.undeterminedBounced > 0) {
+    parts.push(`${fmt(stats.undeterminedBounced)} undetermined`);
+  }
+  return parts.join(" · ");
+}
 
 export default async function OverviewPage({
   searchParams,
@@ -55,7 +73,7 @@ export default async function OverviewPage({
         <StatCard
           label="Bounce rate"
           value={pct(stats.bounceRate)}
-          sublabel={`${fmt(stats.bounced)} bounced`}
+          sublabel={bounceSublabel(stats)}
           tone={stats.bounceRate >= 5 ? "bad" : stats.bounceRate >= 2 ? "warn" : "good"}
         />
         <StatCard

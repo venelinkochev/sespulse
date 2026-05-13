@@ -91,7 +91,14 @@ export default async function DomainsPage({
                 >
                   {pct(r.bounceRate)}{" "}
                   <span className="text-fg-subtle">
-                    ({fmt(r.bounced)})
+                    {r.bounced === 0
+                      ? "(0)"
+                      : `(${[
+                          r.hardBounced > 0 && `${fmt(r.hardBounced)} hard`,
+                          r.softBounced > 0 && `${fmt(r.softBounced)} soft`,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || fmt(r.bounced)})`}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
