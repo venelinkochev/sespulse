@@ -44,6 +44,7 @@ so you can answer questions like:
 - **At-least-once ingestion** — deduplicates by SNS `MessageId`, survives
   worker restarts
 - **Live updates** — the UI refetches every 30 seconds while the tab is open (paused when backgrounded), so you can leave the dashboard up during an incident
+- **Health check endpoint** — `GET /api/health` returns `200 / "ok"` (or `503 / "error"`) with a database ping latency, for plugging into UptimeRobot / BetterStack / Cronitor / etc.
 - **One-command deploy** — `docker compose up -d --build`
 
 ## Architecture: why SQS instead of a webhook?
@@ -169,6 +170,29 @@ All config is environment variables — see [`.env.example`](.env.example):
 
 ¹ Not required if SESPulse runs in AWS with an attached IAM role (EC2,
 ECS, EKS) — the SDK will pick up role credentials automatically.
+
+## Health check
+
+`GET /api/health` is a public endpoint (no auth required) that pings the
+database and reports overall service health. Point your uptime monitor at it:
+
+```sh
+curl https://your-host/api/health
+```
+
+```json
+{
+  "status": "ok",
+  "checks": {
+    "database": { "ok": true, "latencyMs": 4 }
+  },
+  "timestamp": "2026-05-14T11:22:33.000Z"
+}
+```
+
+Returns `200` when healthy and `503` when the database ping fails — most
+monitoring tools (UptimeRobot, BetterStack, Cronitor, Pingdom) will alert
+on the status code automatically.
 
 ## Upgrading
 

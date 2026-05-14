@@ -24,5 +24,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon).*)"],
+  // Skip Next internals, the favicon, and the public health endpoint.
+  matcher: ["/((?!_next/static|_next/image|favicon|api/health).*)"],
 };
