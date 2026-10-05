@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db/client";
+import { bareAddress } from "./address";
 
 export interface OverviewStats {
   totalSent: number;
@@ -386,50 +387,41 @@ export async function getDistinctDomains(): Promise<string[]> {
 // Recipients
 // ---------------------------------------------------------------------------
 
-// SES reports addresses back exactly as they were passed to SendEmail, so we
-// match the raw string plus its lowercase form. Both hit the GIN index on
-// to_addresses; per-recipient event matching below is fully case-insensitive.
-function addressVariants(address: string): string[] {
-  const raw = address.trim();
-  const lower = raw.toLowerCase();
-  return raw === lower ? [raw] : [raw, lower];
-}
-
 // Bounce, Complaint, Delivery and DeliveryDelay events list the specific
 // recipients they apply to. On a multi-recipient message, only count those
 // events for this address if it's actually in that list. Open, Click, Send,
 // Reject and RenderingFailure carry no per-recipient info, so they always
 // apply. Falls back to "applies" if the payload has no recipient list.
-function eventAppliesTo(lowerAddress: string) {
+function eventAppliesTo(key: string) {
   return sql`(
     CASE e.event_type
       WHEN 'Bounce' THEN
         e.payload->'bounce'->'bouncedRecipients' IS NULL OR EXISTS (
           SELECT 1 FROM jsonb_array_elements(e.payload->'bounce'->'bouncedRecipients') r
-          WHERE lower(r->>'emailAddress') = ${lowerAddress})
+          WHERE sespulse_bare_address(r->>'emailAddress') = ${key})
       WHEN 'Complaint' THEN
         e.payload->'complaint'->'complainedRecipients' IS NULL OR EXISTS (
           SELECT 1 FROM jsonb_array_elements(e.payload->'complaint'->'complainedRecipients') r
-          WHERE lower(r->>'emailAddress') = ${lowerAddress})
+          WHERE sespulse_bare_address(r->>'emailAddress') = ${key})
       WHEN 'Delivery' THEN
         e.payload->'delivery'->'recipients' IS NULL OR EXISTS (
           SELECT 1 FROM jsonb_array_elements_text(e.payload->'delivery'->'recipients') r
-          WHERE lower(r) = ${lowerAddress})
+          WHERE sespulse_bare_address(r) = ${key})
       WHEN 'DeliveryDelay' THEN
         e.payload->'deliveryDelay'->'delayedRecipients' IS NULL OR EXISTS (
           SELECT 1 FROM jsonb_array_elements(e.payload->'deliveryDelay'->'delayedRecipients') r
-          WHERE lower(r->>'emailAddress') = ${lowerAddress})
+          WHERE sespulse_bare_address(r->>'emailAddress') = ${key})
       ELSE TRUE
     END
   )`;
 }
 
 // The diagnostic for *this* recipient, rather than the first bounced one.
-function recipientDiagnostic(lowerAddress: string) {
+function recipientDiagnostic(key: string) {
   return sql`COALESCE(
     (SELECT r->>'diagnosticCode'
        FROM jsonb_array_elements(e.payload->'bounce'->'bouncedRecipients') r
-      WHERE lower(r->>'emailAddress') = ${lowerAddress}
+      WHERE sespulse_bare_address(r->>'emailAddress') = ${key}
       LIMIT 1),
     e.diagnostic
   )`;
@@ -467,18 +459,16 @@ export interface RecipientMessageRow {
   diagnostic: string | null;
 }
 
+// `address` may be in any form; it's reduced to a bare lowercase key and
+// matched against the same normalization of to_addresses (GIN-indexed).
 export async function getRecipient(address: string): Promise<{
   summary: RecipientSummary;
   messages: RecipientMessageRow[];
 }> {
-  const variants = addressVariants(address);
-  const lower = address.trim().toLowerCase();
-  const applies = eventAppliesTo(lower);
-  const diag = recipientDiagnostic(lower);
-  const variantsArr = sql`ARRAY[${sql.join(
-    variants.map((v) => sql`${v}`),
-    sql`, `
-  )}]::text[]`;
+  const key = bareAddress(address);
+  const applies = eventAppliesTo(key);
+  const diag = recipientDiagnostic(key);
+  const isRecipient = sql`sespulse_bare_addresses(m.to_addresses) @> ARRAY[${key}]::text[]`;
 
   const [summaryRows, bounceRows, messageRows] = await Promise.all([
     db.execute<{
@@ -496,7 +486,7 @@ export async function getRecipient(address: string): Promise<{
       WITH msgs AS (
         SELECT m.message_id, m.sent_at
         FROM messages m
-        WHERE m.to_addresses && ${variantsArr}
+        WHERE ${isRecipient}
       ),
       ev AS (
         SELECT e.message_id, e.event_type, e.bounce_type, e.occurred_at
@@ -527,7 +517,7 @@ export async function getRecipient(address: string): Promise<{
       SELECT e.message_id, e.occurred_at, e.bounce_type, e.bounce_sub_type, ${diag} AS diagnostic
       FROM events e
       JOIN messages m ON m.message_id = e.message_id
-      WHERE m.to_addresses && ${variantsArr}
+      WHERE ${isRecipient}
         AND e.event_type = 'Bounce'
         AND ${applies}
       ORDER BY e.occurred_at DESC
@@ -561,7 +551,7 @@ export async function getRecipient(address: string): Promise<{
         ORDER BY e.occurred_at DESC, e.id DESC
         LIMIT 1
       ) s ON TRUE
-      WHERE m.to_addresses && ${variantsArr}
+      WHERE ${isRecipient}
       ORDER BY m.sent_at DESC
       LIMIT 200
     `),
@@ -572,7 +562,7 @@ export async function getRecipient(address: string): Promise<{
   const d = (v: string | null | undefined) => (v ? new Date(v) : null);
   return {
     summary: {
-      address: address.trim(),
+      address: key,
       messages: Number(s?.messages ?? 0),
       delivered: Number(s?.delivered ?? 0),
       hardBounced: Number(s?.hard_bounced ?? 0),
@@ -606,22 +596,6 @@ export async function getRecipient(address: string): Promise<{
   };
 }
 
-// Case-insensitive fallback for getRecipient: returns the address as stored,
-// so /recipients/alice@x.com can redirect to the stored Alice@X.com. This
-// scans to_addresses without an index, so only call it on a miss.
-export async function findStoredRecipient(
-  address: string
-): Promise<string | null> {
-  const rows = await db.execute<{ address: string }>(sql`
-    SELECT addr AS address
-    FROM messages m, unnest(m.to_addresses) addr
-    WHERE lower(addr) = ${address.trim().toLowerCase()}
-    ORDER BY m.sent_at DESC
-    LIMIT 1
-  `);
-  return rows[0]?.address ?? null;
-}
-
 export interface ProblemRecipientRow {
   address: string;
   hardBounces: number;
@@ -647,7 +621,7 @@ export async function getProblemRecipients(
   }>(sql`
     WITH hits AS (
       SELECT
-        r->>'emailAddress' AS address,
+        sespulse_bare_address(r->>'emailAddress') AS address,
         CASE WHEN e.bounce_type = 'Permanent' THEN 'hard' ELSE 'soft' END AS kind,
         e.occurred_at,
         COALESCE(r->>'diagnosticCode', e.diagnostic) AS diagnostic
@@ -657,7 +631,7 @@ export async function getProblemRecipients(
         AND e.occurred_at >= NOW() - (${interval})::interval
       UNION ALL
       SELECT
-        r->>'emailAddress' AS address,
+        sespulse_bare_address(r->>'emailAddress') AS address,
         'complaint' AS kind,
         e.occurred_at,
         e.complaint_feedback_type AS diagnostic
@@ -709,10 +683,13 @@ export async function searchRecipients(
     messages: string;
     last_sent_at: string;
   }>(sql`
-    SELECT addr AS address, COUNT(*)::text AS messages, MAX(m.sent_at) AS last_sent_at
+    SELECT
+      sespulse_bare_address(addr) AS address,
+      COUNT(DISTINCT m.message_id)::text AS messages,
+      MAX(m.sent_at) AS last_sent_at
     FROM messages m, unnest(m.to_addresses) addr
     WHERE addr ILIKE ${pattern}
-    GROUP BY addr
+    GROUP BY 1
     ORDER BY MAX(m.sent_at) DESC
     LIMIT ${limit}
   `);

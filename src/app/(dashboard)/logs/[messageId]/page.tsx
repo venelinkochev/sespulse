@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMessageWithEvents } from "@/lib/queries";
 import { EventBadge } from "@/components/EventBadge";
+import { recipientHref } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function MessagePage({
             <span key={addr}>
               {i > 0 && ", "}
               <Link
-                href={`/recipients/${encodeURIComponent(addr)}`}
+                href={recipientHref(addr)}
                 className="text-accent hover:underline"
               >
                 {addr}

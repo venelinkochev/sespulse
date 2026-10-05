@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -28,7 +29,11 @@ export const messages = pgTable(
     fromDomainIdx: index("messages_from_domain_idx").on(t.fromDomain),
     sentAtIdx: index("messages_sent_at_idx").on(t.sentAt),
     lastEventTypeIdx: index("messages_last_event_type_idx").on(t.lastEventType),
-    toAddressesIdx: index("messages_to_addresses_idx").using("gin", t.toAddresses),
+    // Expression index; sespulse_bare_addresses() is defined in migrate.ts.
+    recipientKeysIdx: index("messages_recipient_keys_idx").using(
+      "gin",
+      sql`sespulse_bare_addresses(${t.toAddresses})`
+    ),
   })
 );
 

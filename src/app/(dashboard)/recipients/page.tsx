@@ -6,6 +6,7 @@ import {
 } from "@/lib/queries";
 import { RangeTabs } from "@/components/RangeTabs";
 import { timeAgo } from "@/lib/time";
+import { recipientHref } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,6 @@ function strOrNull(v: string | string[] | undefined): string | null {
 }
 
 const fmt = (n: number) => n.toLocaleString();
-
-const recipientHref = (address: string) =>
-  `/recipients/${encodeURIComponent(address)}`;
 
 export default async function RecipientsPage({
   searchParams,

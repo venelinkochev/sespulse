@@ -42,8 +42,25 @@ CREATE INDEX IF NOT EXISTS events_type_idx ON events(event_type);
 CREATE INDEX IF NOT EXISTS events_occurred_at_idx ON events(occurred_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS events_sns_dedupe_idx ON events(sns_message_id);
 
--- Recipient lookups (to_addresses && ARRAY[...]) on the Recipients page.
-CREATE INDEX IF NOT EXISTS messages_to_addresses_idx ON messages USING GIN (to_addresses);
+-- Recipient addresses arrive in several forms: bare (a@x.com), with a
+-- display name (Name <a@x.com>, "Name" <A@X.com>), in any casing. These
+-- reduce one address, or every address in an array, to a bare lowercase
+-- key. Keep the two expressions identical, and keep them in step with
+-- bareAddress() in src/lib/address.ts.
+CREATE OR REPLACE FUNCTION sespulse_bare_address(addr text) RETURNS text
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+    SELECT lower(btrim(COALESCE(substring(addr from '<([^<>]+)>'), addr)))
+  $$;
+CREATE OR REPLACE FUNCTION sespulse_bare_addresses(addrs text[]) RETURNS text[]
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+    SELECT COALESCE(array_agg(lower(btrim(COALESCE(substring(a from '<([^<>]+)>'), a)))), '{}')
+    FROM unnest(addrs) a
+  $$;
+
+-- Recipient lookups on the Recipients page match on the normalized keys.
+DROP INDEX IF EXISTS messages_to_addresses_idx;
+CREATE INDEX IF NOT EXISTS messages_recipient_keys_idx
+  ON messages USING GIN (sespulse_bare_addresses(to_addresses));
 
 -- Single-row table the worker updates as it polls SQS. Lets the dashboard
 -- and /api/health tell "no mail being sent" apart from "worker is down".

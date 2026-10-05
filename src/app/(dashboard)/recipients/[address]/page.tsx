@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { findStoredRecipient, getRecipient } from "@/lib/queries";
+import { getRecipient } from "@/lib/queries";
+import { bareAddress, recipientHref } from "@/lib/address";
 import { EventBadge } from "@/components/EventBadge";
 import { StatCard } from "@/components/StatCard";
 import { timeAgo } from "@/lib/time";
@@ -16,14 +17,14 @@ export default async function RecipientPage({
 }) {
   const { address } = await params;
   const decoded = decodeURIComponent(address);
-  const { summary, messages } = await getRecipient(decoded);
-  if (summary.messages === 0) {
-    const stored = await findStoredRecipient(decoded);
-    if (stored && stored !== decoded) {
-      redirect(`/recipients/${encodeURIComponent(stored)}`);
-    }
-    notFound();
-  }
+  // One canonical URL per recipient: /recipients/Name%20%3CA@X.com%3E
+  // and /recipients/A@X.com both land on /recipients/a@x.com.
+  const key = bareAddress(decoded);
+  if (!key) notFound();
+  if (key !== decoded) redirect(recipientHref(key));
+
+  const { summary, messages } = await getRecipient(key);
+  if (summary.messages === 0) notFound();
 
   const hasMultiRecipient = messages.some((m) => m.recipientCount > 1);
 
@@ -113,7 +114,7 @@ export default async function RecipientPage({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col items-start gap-1">
                       <EventBadge type={m.status} bounceType={m.bounceType} />
                       {m.status === "Bounce" && m.diagnostic && (
                         <span
