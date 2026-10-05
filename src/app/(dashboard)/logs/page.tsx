@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getDistinctDomains, getLogs } from "@/lib/queries";
 import { EventBadge } from "@/components/EventBadge";
 import { timeAgo } from "@/lib/time";
+import { recipientHref } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 
@@ -138,7 +139,7 @@ export default async function LogsPage({
                 <td className="px-4 py-3 font-mono text-xs">
                   {r.toAddresses[0] && (
                     <Link
-                      href={`/recipients/${encodeURIComponent(r.toAddresses[0])}`}
+                      href={recipientHref(r.toAddresses[0])}
                       className="hover:text-accent hover:underline"
                     >
                       {r.toAddresses[0]}
