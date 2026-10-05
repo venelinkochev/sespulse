@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isAuthEnabled } from "@/lib/session";
 import { logoutAction } from "../login/actions";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { WorkerStatus } from "@/components/WorkerStatus";
 
 function refreshIntervalMs(): number {
   const raw = process.env.DASHBOARD_REFRESH_SECONDS;
@@ -30,12 +31,17 @@ export default function DashboardLayout({
           <NavLink href="/" label="Overview" />
           <NavLink href="/domains" label="Domains" />
           <NavLink href="/logs" label="Email Logs" />
+          <NavLink href="/recipients" label="Recipients" />
         </nav>
-        {refreshMs > 0 && (
-          <div className="mt-10">
-            <AutoRefresh intervalMs={refreshMs} disabledOn={["/logs"]} />
-          </div>
-        )}
+        <div className="mt-10 space-y-3">
+          <WorkerStatus />
+          {refreshMs > 0 && (
+            <AutoRefresh
+              intervalMs={refreshMs}
+              disabledOn={["/logs", "/recipients/"]}
+            />
+          )}
+        </div>
         {isAuthEnabled() && (
           <form action={logoutAction} className="mt-auto pt-6">
             <button

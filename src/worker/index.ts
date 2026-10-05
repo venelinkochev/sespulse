@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-sqs";
 import { sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { events, messages } from "../db/schema";
+import { events, messages, workerHeartbeat } from "../db/schema";
 import {
   domainOf,
   inferEventType,
@@ -28,6 +28,34 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   running = false;
 });
+
+// Heartbeat: recorded after every successful SQS receive (even an empty one)
+// so the dashboard can tell a quiet sending period apart from a dead worker.
+// Flushed at most every HEARTBEAT_FLUSH_MS to keep write volume trivial.
+const HEARTBEAT_FLUSH_MS = 15_000;
+let lastPollAt: Date | null = null;
+let lastEventAt: Date | null = null;
+let lastFlushAt = 0;
+
+async function flushHeartbeat(force = false) {
+  if (!lastPollAt) return;
+  if (!force && Date.now() - lastFlushAt < HEARTBEAT_FLUSH_MS) return;
+  try {
+    await db
+      .insert(workerHeartbeat)
+      .values({ id: 1, lastPollAt, lastEventAt })
+      .onConflictDoUpdate({
+        target: workerHeartbeat.id,
+        set: {
+          lastPollAt,
+          lastEventAt: sql`COALESCE(${lastEventAt?.toISOString() ?? null}::timestamptz, ${workerHeartbeat.lastEventAt})`,
+        },
+      });
+    lastFlushAt = Date.now();
+  } catch (err) {
+    console.error("Failed to write worker heartbeat", err);
+  }
+}
 
 async function handleNotification(
   notif: SesNotification,
@@ -150,7 +178,11 @@ async function poll() {
         })
       );
       const msgs = res.Messages ?? [];
-      if (msgs.length === 0) continue;
+      lastPollAt = new Date();
+      if (msgs.length === 0) {
+        await flushHeartbeat();
+        continue;
+      }
 
       const toDelete: { Id: string; ReceiptHandle: string }[] = [];
       for (const m of msgs) {
@@ -161,6 +193,7 @@ async function poll() {
       }
 
       if (toDelete.length > 0) {
+        lastEventAt = new Date();
         await sqs.send(
           new DeleteMessageBatchCommand({
             QueueUrl: QUEUE_URL,
@@ -168,12 +201,16 @@ async function poll() {
           })
         );
       }
+      await flushHeartbeat();
     } catch (err) {
       console.error("Polling error", err);
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
+  await flushHeartbeat(true);
   console.log("Worker shutting down.");
+  // The Postgres pool would otherwise keep the event loop alive.
+  process.exit(0);
 }
 
 poll();
