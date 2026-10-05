@@ -41,6 +41,9 @@ so you can answer questions like:
 - **Email logs** — filter by sending domain, latest event type, or free-text
   (subject / from / recipient); drill into any message to see its event
   timeline with bounce diagnostics and open/click IPs
+- **CSV export** — download every message matching the current log filters
+  (not just the 200 on screen) for a spreadsheet, a support ticket, or
+  cleaning a mailing list. See [CSV export](#csv-export)
 - **Recipients** — look up any address to see every message sent to it,
   how many were delivered, bounced or complained, and the latest bounce
   diagnostic. A **Problem recipients** list shows addresses that bounced or
@@ -229,6 +232,52 @@ Returns `200` when every check passes and `503` otherwise. Most monitoring
 tools (UptimeRobot, BetterStack, Cronitor, Pingdom) alert on the status
 code automatically.
 
+## CSV export
+
+On the **Email Logs** page, set your filters, click **Filter**, then click
+**Export CSV**. The file contains every message matching the applied filters,
+newest first. The page only shows the latest 200. Filters you've changed
+but not applied with **Filter** aren't included.
+
+The same export is available at `GET /api/logs/export`, with the same query
+parameters as the logs page:
+
+| Parameter | Example | Matches |
+|---|---|---|
+| `domain` | `mail.acme.com` | Sending domain, exact |
+| `event` | `Bounce` | The message's *latest* event type (same as the dropdown) |
+| `q` | `invoice` | Subject, sender, or any recipient, case-insensitive substring |
+
+```sh
+# All messages from one domain whose latest event is a bounce
+curl -b "sespulse_session=…" \
+  "https://your-host/api/logs/export?domain=mail.acme.com&event=Bounce" \
+  -o bounces.csv
+```
+
+Like every page except `/api/health`, the endpoint requires a signed-in
+session when `DASHBOARD_USER` / `DASHBOARD_PASSWORD` are set.
+
+Columns:
+
+| Column | Notes |
+|---|---|
+| `sent_at` | ISO 8601, UTC |
+| `message_id` | SES message ID. Open `/logs/<message_id>` for the full timeline |
+| `from_address`, `from_domain` | Sender |
+| `to_addresses` | All recipients, separated by `; ` |
+| `subject` | |
+| `status` | Latest event type: `Delivery`, `Bounce`, `Open`, … |
+| `bounce_type` | `Permanent` / `Transient` / `Undetermined` when `status` is `Bounce` |
+| `last_event_at` | ISO 8601, UTC |
+
+The file is UTF-8 with a byte-order mark, so Excel shows non-ASCII subjects
+and emoji correctly. Cells starting with `=`, `+`, `-` or `@` get a leading
+`'` so a spreadsheet can't run them as formulas (subjects and addresses come
+from outside your control). Rows are streamed in batches of 1,000, so large
+exports start downloading right away without loading everything into
+memory.
+
 ## Upgrading
 
 To pull the latest changes and rebuild:
@@ -313,7 +362,7 @@ or replay from an S3 archive — there's no built-in importer yet.
 - Slack/webhook alerts when bounce or complaint rate crosses a threshold
 - SES suppression list management (view, add, remove) from the dashboard
 - Per-message header view from the SES payload
-- CSV export of filtered logs
+- Date-range and "has event" filters for logs (and the CSV export)
 
 PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
