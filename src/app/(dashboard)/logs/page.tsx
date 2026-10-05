@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDistinctDomains, getLogs } from "@/lib/queries";
 import { EventBadge } from "@/components/EventBadge";
+import { timeAgo } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -20,17 +21,6 @@ function strOrNull(v: string | string[] | undefined): string | null {
   if (!v) return null;
   const s = Array.isArray(v) ? v[0] : v;
   return s ? s : null;
-}
-
-function rel(d: Date) {
-  const diff = Date.now() - d.getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const days = Math.floor(h / 24);
-  return `${days}d ago`;
 }
 
 export default async function LogsPage({
@@ -140,13 +130,20 @@ export default async function LogsPage({
                 className="border-t border-border-subtle hover:bg-bg-hover/40"
               >
                 <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
-                  {rel(r.sentAt)}
+                  {timeAgo(r.sentAt)}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">
                   {r.fromAddress}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">
-                  {r.toAddresses[0]}
+                  {r.toAddresses[0] && (
+                    <Link
+                      href={`/recipients/${encodeURIComponent(r.toAddresses[0])}`}
+                      className="hover:text-accent hover:underline"
+                    >
+                      {r.toAddresses[0]}
+                    </Link>
+                  )}
                   {r.toAddresses.length > 1 && (
                     <span className="text-fg-subtle">
                       {" "}

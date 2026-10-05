@@ -30,7 +30,19 @@ export default async function MessagePage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <Field label="From" value={message.from_address} />
         <Field label="Domain" value={message.from_domain} />
-        <Field label="To" value={message.to_addresses.join(", ")} />
+        <Field label="To">
+          {message.to_addresses.map((addr, i) => (
+            <span key={addr}>
+              {i > 0 && ", "}
+              <Link
+                href={`/recipients/${encodeURIComponent(addr)}`}
+                className="text-accent hover:underline"
+              >
+                {addr}
+              </Link>
+            </span>
+          ))}
+        </Field>
         <Field label="Config set" value={message.configuration_set ?? "—"} />
       </div>
 
@@ -99,13 +111,21 @@ export default async function MessagePage({
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-border bg-bg-card p-3">
       <div className="text-xs uppercase tracking-wide text-fg-subtle">
         {label}
       </div>
-      <div className="mt-1 break-words font-mono text-xs">{value}</div>
+      <div className="mt-1 break-words font-mono text-xs">{children ?? value}</div>
     </div>
   );
 }

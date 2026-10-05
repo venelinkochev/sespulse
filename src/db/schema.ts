@@ -4,6 +4,7 @@ import {
   timestamp,
   jsonb,
   index,
+  integer,
   serial,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -27,6 +28,7 @@ export const messages = pgTable(
     fromDomainIdx: index("messages_from_domain_idx").on(t.fromDomain),
     sentAtIdx: index("messages_sent_at_idx").on(t.sentAt),
     lastEventTypeIdx: index("messages_last_event_type_idx").on(t.lastEventType),
+    toAddressesIdx: index("messages_to_addresses_idx").using("gin", t.toAddresses),
   })
 );
 
@@ -56,6 +58,12 @@ export const events = pgTable(
     snsDedupeIdx: uniqueIndex("events_sns_dedupe_idx").on(t.snsMessageId),
   })
 );
+
+export const workerHeartbeat = pgTable("worker_heartbeat", {
+  id: integer("id").primaryKey().default(1),
+  lastPollAt: timestamp("last_poll_at", { withTimezone: true }).notNull(),
+  lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+});
 
 export type Message = typeof messages.$inferSelect;
 export type Event = typeof events.$inferSelect;

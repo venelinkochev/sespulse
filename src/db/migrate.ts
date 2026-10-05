@@ -41,6 +41,17 @@ CREATE INDEX IF NOT EXISTS events_message_id_idx ON events(message_id);
 CREATE INDEX IF NOT EXISTS events_type_idx ON events(event_type);
 CREATE INDEX IF NOT EXISTS events_occurred_at_idx ON events(occurred_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS events_sns_dedupe_idx ON events(sns_message_id);
+
+-- Recipient lookups (to_addresses && ARRAY[...]) on the Recipients page.
+CREATE INDEX IF NOT EXISTS messages_to_addresses_idx ON messages USING GIN (to_addresses);
+
+-- Single-row table the worker updates as it polls SQS. Lets the dashboard
+-- and /api/health tell "no mail being sent" apart from "worker is down".
+CREATE TABLE IF NOT EXISTS worker_heartbeat (
+  id             INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  last_poll_at   TIMESTAMPTZ NOT NULL,
+  last_event_at  TIMESTAMPTZ
+);
 `;
 
 async function main() {
