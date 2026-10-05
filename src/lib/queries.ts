@@ -226,16 +226,29 @@ export interface LogRow {
   lastBounceType: string | null;
 }
 
-export async function getLogs(params: {
-  limit?: number;
+export interface LogFilters {
   domain?: string | null;
   eventType?: string | null;
   q?: string | null;
-}): Promise<LogRow[]> {
-  const limit = Math.min(params.limit ?? 100, 500);
-  const domain = params.domain ?? null;
-  const eventType = params.eventType ?? null;
-  const q = params.q ? `%${params.q}%` : null;
+}
+
+// Position after the last row of a batch, for keyset pagination. sentAt is
+// Postgres's own text rendering so no sub-millisecond precision is lost.
+interface LogCursor {
+  sentAt: string;
+  messageId: string;
+}
+
+async function queryLogs(
+  filters: LogFilters,
+  limit: number,
+  after: LogCursor | null
+): Promise<{ rows: LogRow[]; next: LogCursor | null }> {
+  const domain = filters.domain ?? null;
+  const eventType = filters.eventType ?? null;
+  const q = filters.q ? `%${filters.q}%` : null;
+  const afterSentAt = after?.sentAt ?? null;
+  const afterId = after?.messageId ?? null;
 
   const rows = await db.execute<{
     message_id: string;
@@ -244,6 +257,7 @@ export async function getLogs(params: {
     to_addresses: string[];
     subject: string | null;
     sent_at: string;
+    sent_at_cursor: string;
     last_event_type: string | null;
     last_event_at: string | null;
     last_bounce_type: string | null;
@@ -255,6 +269,7 @@ export async function getLogs(params: {
       m.to_addresses,
       m.subject,
       m.sent_at,
+      m.sent_at::text AS sent_at_cursor,
       m.last_event_type,
       m.last_event_at,
       CASE WHEN m.last_event_type = 'Bounce' THEN (
@@ -273,21 +288,54 @@ export async function getLogs(params: {
         OR m.from_address ILIKE ${q}
         OR EXISTS (SELECT 1 FROM unnest(m.to_addresses) addr WHERE addr ILIKE ${q})
       )
-    ORDER BY m.sent_at DESC
+      AND (
+        ${afterSentAt}::timestamptz IS NULL
+        OR (m.sent_at, m.message_id) < (${afterSentAt}::timestamptz, ${afterId}::text)
+      )
+    ORDER BY m.sent_at DESC, m.message_id DESC
     LIMIT ${limit}
   `);
 
-  return rows.map((r) => ({
-    messageId: r.message_id,
-    fromAddress: r.from_address,
-    fromDomain: r.from_domain,
-    toAddresses: r.to_addresses,
-    subject: r.subject,
-    sentAt: new Date(r.sent_at),
-    lastEventType: r.last_event_type,
-    lastEventAt: r.last_event_at ? new Date(r.last_event_at) : null,
-    lastBounceType: r.last_bounce_type,
-  }));
+  const last = rows[rows.length - 1];
+  return {
+    rows: rows.map((r) => ({
+      messageId: r.message_id,
+      fromAddress: r.from_address,
+      fromDomain: r.from_domain,
+      toAddresses: r.to_addresses,
+      subject: r.subject,
+      sentAt: new Date(r.sent_at),
+      lastEventType: r.last_event_type,
+      lastEventAt: r.last_event_at ? new Date(r.last_event_at) : null,
+      lastBounceType: r.last_bounce_type,
+    })),
+    next:
+      rows.length === limit && last
+        ? { sentAt: last.sent_at_cursor, messageId: last.message_id }
+        : null,
+  };
+}
+
+export async function getLogs(
+  params: LogFilters & { limit?: number }
+): Promise<LogRow[]> {
+  const limit = Math.min(params.limit ?? 100, 500);
+  const { rows } = await queryLogs(params, limit, null);
+  return rows;
+}
+
+// Every message matching the filters, newest first, fetched in batches so
+// large exports never hold the whole result set in memory.
+export async function* iterateLogs(
+  filters: LogFilters,
+  batchSize = 1000
+): AsyncGenerator<LogRow[]> {
+  let after: LogCursor | null = null;
+  do {
+    const { rows, next } = await queryLogs(filters, batchSize, after);
+    if (rows.length > 0) yield rows;
+    after = next;
+  } while (after);
 }
 
 export async function getMessageWithEvents(messageId: string) {

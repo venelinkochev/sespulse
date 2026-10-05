@@ -43,12 +43,21 @@ export default async function LogsPage({
     getDistinctDomains(),
   ]);
 
+  const exportParams = new URLSearchParams();
+  if (domain) exportParams.set("domain", domain);
+  if (eventType) exportParams.set("event", eventType);
+  if (q) exportParams.set("q", q);
+  const exportHref = `/api/logs/export${
+    exportParams.size ? `?${exportParams}` : ""
+  }`;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Email Logs</h1>
         <p className="text-sm text-fg-muted">
-          Most recent messages with their latest event.
+          The 200 most recent messages with their latest event. Export CSV
+          for every match.
         </p>
       </div>
 
@@ -100,6 +109,14 @@ export default async function LogsPage({
             Clear
           </Link>
         )}
+        <a
+          href={exportHref}
+          download
+          className="ml-auto rounded-md border border-border bg-bg-card px-4 py-2 text-fg-muted hover:bg-bg-hover hover:text-fg"
+          title="Download every message matching the applied filters as CSV, not just the 200 shown here"
+        >
+          Export CSV
+        </a>
       </form>
 
       <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
