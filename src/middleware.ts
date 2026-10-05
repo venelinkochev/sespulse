@@ -24,6 +24,10 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals, the favicon, and the public health endpoint.
-  matcher: ["/((?!_next/static|_next/image|favicon|api/health).*)"],
+  // Skip Next internals, icons + web manifest (needed on the login page
+  // itself, and fetched by browsers without cookies), and the public
+  // health endpoint.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon|icon\\.svg|icon-[a-z0-9-]+\\.png|apple-icon\\.png|manifest\\.webmanifest|api/health).*)",
+  ],
 };
