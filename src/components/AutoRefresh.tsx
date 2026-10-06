@@ -35,14 +35,10 @@ export function AutoRefresh({
   const seconds = Math.round(intervalMs / 1000);
   return (
     <div
-      className="flex items-center gap-2 text-xs text-fg-subtle"
-      title={`Dashboard data refreshes every ${seconds}s`}
+      className="text-2xs text-fg-subtle"
+      title={`Dashboard data refreshes every ${seconds}s while this tab is visible`}
     >
-      <span className="relative inline-flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-green opacity-60" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-green" />
-      </span>
-      <span>Live · {seconds}s</span>
+      Auto-refresh · {seconds}s
     </div>
   );
 }

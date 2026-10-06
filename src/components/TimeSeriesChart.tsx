@@ -1,5 +1,7 @@
 import type { Range, TimeSeriesPoint } from "@/lib/queries";
 
+// Stacked bars per bucket: delivered, bounced, and everything else that was
+// sent (in flight, rejected, complained) so the bar height is total sent.
 export function TimeSeriesChart({
   data,
   range,
@@ -10,23 +12,22 @@ export function TimeSeriesChart({
   const empty = data.length === 0 || data.every((d) => d.sent === 0);
 
   return (
-    <div className="rounded-lg border border-border bg-bg-card p-5">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="card p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-sm uppercase tracking-wide text-fg-subtle">
-            Send volume
-          </h2>
-          <p className="text-xs text-fg-muted mt-0.5">
-            {range === "24h" ? "Hourly" : "Daily"} sends and bounces
+          <h2 className="text-sm font-semibold">Send volume</h2>
+          <p className="mt-0.5 text-xs text-fg-muted">
+            {range === "24h" ? "Per hour" : "Per day"}, by outcome
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs text-fg-muted">
-          <Legend swatch="bg-accent/60" label="Sent" />
+          <Legend swatch="bg-accent" label="Delivered" />
           <Legend swatch="bg-accent-red" label="Bounced" />
+          <Legend swatch="bg-fg-subtle/50" label="Other" />
         </div>
       </div>
       {empty ? (
-        <div className="flex h-[220px] items-center justify-center text-sm text-fg-muted">
+        <div className="flex h-[220px] items-center justify-center rounded-md border border-dashed border-border text-sm text-fg-subtle">
           No send activity in this range yet.
         </div>
       ) : (
@@ -47,20 +48,22 @@ function Chart({
 
   const W = 1000;
   const H = 220;
-  const padL = 44;
-  const padR = 12;
-  const padT = 12;
-  const padB = 28;
+  const padL = 40;
+  const padR = 4;
+  const padT = 8;
+  const padB = 26;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const slotW = chartW / data.length;
-  const barW = Math.max(slotW - 4, 2);
+  const gap = Math.min(6, slotW * 0.3);
+  const barW = Math.max(slotW - gap, 1.5);
 
   const niceMax = niceCeil(max);
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => ({
+  const ticks = [0, 0.5, 1].map((t) => ({
     y: padT + chartH - chartH * t,
     label: Math.round(niceMax * t).toLocaleString(),
   }));
+  const yOf = (n: number) => (n / niceMax) * chartH;
 
   const fmtX = (d: Date) =>
     range === "24h"
@@ -69,21 +72,13 @@ function Chart({
 
   const fmtTooltip = (d: Date) =>
     range === "24h"
-      ? d.toLocaleString([], {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-        })
-      : d.toLocaleDateString([], {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        });
+      ? d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric" })
+      : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 
-  const labelEvery = Math.max(1, Math.ceil(data.length / 8));
+  const labelEvery = Math.max(1, Math.ceil(data.length / 7));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[220px]">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {ticks.map((t, i) => (
         <g key={i}>
           <line
@@ -91,13 +86,13 @@ function Chart({
             x2={W - padR}
             y1={t.y}
             y2={t.y}
-            stroke="#1f2535"
-            strokeDasharray={i === 0 ? "0" : "3 3"}
+            className="stroke-border-subtle"
+            vectorEffect="non-scaling-stroke"
           />
           <text
             x={padL - 8}
             y={t.y + 3}
-            fill="#6b7388"
+            className="fill-fg-subtle font-mono"
             fontSize="10"
             textAnchor="end"
           >
@@ -107,53 +102,43 @@ function Chart({
       ))}
 
       {data.map((d, i) => {
-        const x = padL + i * slotW + 2;
-        const sentH = (d.sent / niceMax) * chartH;
-        const bouncedH = (d.bounced / niceMax) * chartH;
-        const sentY = padT + chartH - sentH;
-        const bouncedY = padT + chartH - bouncedH;
-        const isLabel = i % labelEvery === 0 || i === data.length - 1;
+        const x = padL + i * slotW + gap / 2;
+        const base = padT + chartH;
+        const delivered = Math.min(d.delivered, d.sent);
+        const bounced = Math.min(d.bounced, d.sent - delivered);
+        const other = Math.max(0, d.sent - delivered - bounced);
+        const hDel = yOf(delivered);
+        const hBnc = yOf(bounced);
+        const hOth = yOf(other);
+        const isLabel = i % labelEvery === 0;
+        const bounceRate = d.sent ? ((d.bounced / d.sent) * 100).toFixed(1) : "0";
         return (
           <g key={i}>
-            {d.sent > 0 && (
-              <rect
-                x={x}
-                y={sentY}
-                width={barW}
-                height={sentH}
-                fill="#5b8def"
-                fillOpacity="0.55"
-                rx="2"
-              >
-                <title>
-                  {fmtTooltip(d.bucket)} — {d.sent.toLocaleString()} sent
-                  {", "}
-                  {d.delivered.toLocaleString()} delivered
-                  {d.bounced > 0
-                    ? `, ${d.bounced.toLocaleString()} bounced`
-                    : ""}
-                </title>
-              </rect>
+            <title>
+              {`${fmtTooltip(d.bucket)}\n${d.sent.toLocaleString()} sent · ${d.delivered.toLocaleString()} delivered · ${d.bounced.toLocaleString()} bounced (${bounceRate}%)`}
+            </title>
+            {/* Full-height hover target */}
+            <rect x={x} y={padT} width={barW} height={chartH} className="fill-transparent hover:fill-fg/[0.04]" />
+            {delivered > 0 && (
+              <rect x={x} y={base - hDel} width={barW} height={hDel} className="fill-accent/80" />
             )}
-            {d.bounced > 0 && (
+            {bounced > 0 && (
+              <rect x={x} y={base - hDel - hBnc} width={barW} height={hBnc} className="fill-accent-red" />
+            )}
+            {other > 0 && (
               <rect
                 x={x}
-                y={bouncedY}
+                y={base - hDel - hBnc - hOth}
                 width={barW}
-                height={bouncedH}
-                fill="#f87171"
-                rx="2"
-              >
-                <title>
-                  {fmtTooltip(d.bucket)} — {d.bounced.toLocaleString()} bounced
-                </title>
-              </rect>
+                height={hOth}
+                className="fill-fg-subtle/40"
+              />
             )}
             {isLabel && (
               <text
                 x={x + barW / 2}
-                y={H - padB + 16}
-                fill="#6b7388"
+                y={H - 6}
+                className="fill-fg-subtle font-mono"
                 fontSize="10"
                 textAnchor="middle"
               >
@@ -169,8 +154,8 @@ function Chart({
 
 function Legend({ swatch, label }: { swatch: string; label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-block h-2.5 w-2.5 rounded-sm ${swatch}`} />
+    <div className="flex items-center gap-1.5">
+      <span className={`inline-block h-2 w-2 rounded-[2px] ${swatch}`} />
       <span>{label}</span>
     </div>
   );

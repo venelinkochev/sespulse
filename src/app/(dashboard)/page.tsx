@@ -5,7 +5,9 @@ import {
   type Range,
 } from "@/lib/queries";
 import { estimateCost, formatCost, pricePerEmail } from "@/lib/pricing";
-import { StatCard } from "@/components/StatCard";
+import { Metric, MetricStrip } from "@/components/Metrics";
+import { ReputationGauge } from "@/components/ReputationGauge";
+import { PageHeader, SectionTitle } from "@/components/PageHeader";
 import { RangeTabs } from "@/components/RangeTabs";
 import { TimeSeriesChart } from "@/components/TimeSeriesChart";
 
@@ -17,19 +19,29 @@ function parseRange(v: string | string[] | undefined): Range {
 }
 
 const fmt = (n: number) => n.toLocaleString();
-const pct = (n: number) => `${n.toFixed(2)}%`;
+const pct = (n: number, digits = 1) => `${n.toFixed(digits)}%`;
 
-function bounceSublabel(stats: OverviewStats): string {
-  if (stats.bounced === 0) return "0 bounced";
+const RANGE_LABEL: Record<Range, string> = {
+  "24h": "last 24 hours",
+  "7d": "last 7 days",
+  "30d": "last 30 days",
+};
+
+function bounceDetail(stats: OverviewStats) {
+  if (stats.bounced === 0) return "No bounces.";
   const parts = [
-    `${fmt(stats.bounced)} bounced`,
     `${fmt(stats.hardBounced)} hard`,
     `${fmt(stats.softBounced)} soft`,
   ];
   if (stats.undeterminedBounced > 0) {
     parts.push(`${fmt(stats.undeterminedBounced)} undetermined`);
   }
-  return parts.join(" · ");
+  return (
+    <>
+      <span className="text-fg">{fmt(stats.bounced)} bounced</span>
+      <span className="text-fg-subtle"> · {parts.join(" · ")}</span>
+    </>
+  );
 }
 
 export default async function OverviewPage({
@@ -43,90 +55,103 @@ export default async function OverviewPage({
     getOverview(range),
     getTimeSeries(range),
   ]);
+  const deliveryDot =
+    stats.totalSent === 0
+      ? undefined
+      : stats.deliveryRate >= 95
+        ? "good"
+        : stats.deliveryRate >= 85
+          ? "warn"
+          : "bad";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-sm text-fg-muted">
-            SES delivery health across all sending domains.
-          </p>
-        </div>
-        <RangeTabs current={range} basePath="/" />
-      </div>
+    <>
+      <PageHeader
+        title="Overview"
+        description={`Delivery health across all sending domains, ${RANGE_LABEL[range]}.`}
+        actions={<RangeTabs current={range} basePath="/" />}
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Sent" value={fmt(stats.totalSent)} />
-        <StatCard
-          label="Delivery rate"
-          value={pct(stats.deliveryRate)}
-          sublabel={`${fmt(stats.delivered)} delivered`}
-          tone={
-            stats.deliveryRate >= 95
-              ? "good"
-              : stats.deliveryRate >= 85
-                ? "warn"
-                : "bad"
-          }
+      <MetricStrip>
+        <Metric label="Sent" value={fmt(stats.totalSent)} sub={`${fmt(stats.recipientCount)} recipients`} />
+        <Metric
+          label="Delivered"
+          value={stats.totalSent ? pct(stats.deliveryRate) : "—"}
+          sub={`${fmt(stats.delivered)} messages`}
+          dot={deliveryDot}
         />
-        <StatCard
-          label="Bounce rate"
-          value={pct(stats.bounceRate)}
-          sublabel={bounceSublabel(stats)}
-          tone={stats.bounceRate >= 5 ? "bad" : stats.bounceRate >= 2 ? "warn" : "good"}
+        <Metric
+          label="Opened"
+          value={stats.delivered ? pct(stats.openRate) : "—"}
+          sub={`${fmt(stats.opened)} of delivered`}
         />
-        <StatCard
-          label="Complaint rate"
-          value={pct(stats.complaintRate)}
-          sublabel={`${fmt(stats.complained)} complaints`}
-          tone={
-            stats.complaintRate >= 0.1
-              ? "bad"
-              : stats.complaintRate >= 0.05
-                ? "warn"
-                : "good"
-          }
+        <Metric
+          label="Clicked"
+          value={stats.delivered ? pct(stats.clickRate) : "—"}
+          sub={`${fmt(stats.clicked)} of delivered`}
         />
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Open rate"
-          value={pct(stats.openRate)}
-          sublabel={`${fmt(stats.opened)} opens / delivered`}
-        />
-        <StatCard
-          label="Click rate"
-          value={pct(stats.clickRate)}
-          sublabel={`${fmt(stats.clicked)} clicks / delivered`}
-        />
-        <StatCard
+        <Metric
           label="Rejected"
           value={fmt(stats.rejected)}
-          sublabel="Refused before send"
-          tone={stats.rejected > 0 ? "warn" : "default"}
+          sub="Refused by SES"
+          dot={stats.rejected > 0 ? "warn" : undefined}
         />
-        <StatCard
-          label="Estimated cost"
+        <Metric
+          label="Est. cost"
           value={formatCost(estimateCost(stats.recipientCount))}
-          sublabel={`${fmt(stats.recipientCount)} recipients @ ${formatCost(pricePerEmail() * 1000)}/1k`}
+          sub={`at ${formatCost(pricePerEmail() * 1000)} per 1k`}
+          title="Outbound recipients × SES_PRICE_PER_1000. Excludes attachments and dedicated IPs."
         />
-      </div>
+      </MetricStrip>
 
-      <TimeSeriesChart data={series} range={range} />
+      <section>
+        <SectionTitle description="AWS reviews your account at the first marker and may pause sending at the second. Rates are per message sent in this range.">
+          Sending reputation
+        </SectionTitle>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ReputationGauge
+            label="Bounce rate"
+            value={stats.bounceRate}
+            detail={bounceDetail(stats)}
+            thresholds={{ elevated: 2, review: 5, pause: 10 }}
+            sampleSize={stats.totalSent}
+          />
+          <ReputationGauge
+            label="Complaint rate"
+            value={stats.complaintRate}
+            digits={3}
+            detail={
+              stats.complained === 0 ? (
+                "No spam complaints."
+              ) : (
+                <span className="text-fg">
+                  {fmt(stats.complained)} spam complaint{stats.complained === 1 ? "" : "s"}
+                </span>
+              )
+            }
+            thresholds={{ elevated: 0.05, review: 0.1, pause: 0.5 }}
+            sampleSize={stats.totalSent}
+          />
+        </div>
+      </section>
+
+      <section>
+        <TimeSeriesChart data={series} range={range} />
+      </section>
 
       {stats.totalSent === 0 && (
-        <div className="rounded-lg border border-border bg-bg-card p-6 text-sm text-fg-muted">
-          <p className="font-medium text-fg">No events yet.</p>
+        <div className="card border-dashed p-6 text-sm text-fg-muted">
+          <p className="font-medium text-fg">No events yet</p>
           <p className="mt-1">
             Make sure SES is publishing to your SNS topic and the topic is
-            subscribed to the SQS queue defined in{" "}
-            <code className="text-accent">SES_EVENTS_QUEUE_URL</code>. See the
-            README for the full setup.
+            subscribed to the SQS queue in{" "}
+            <code className="rounded bg-bg-inset px-1.5 py-0.5 font-mono text-xs text-fg">
+              SES_EVENTS_QUEUE_URL
+            </code>
+            . See the README for the full setup.
           </p>
         </div>
       )}
-    </div>
+    </>
   );
 }

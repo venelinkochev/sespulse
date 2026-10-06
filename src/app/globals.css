@@ -2,15 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background: #0b0d12;
-  color: #e6e8ee;
-  min-height: 100vh;
+/*
+ * Palette. Neutral graphite surfaces, one brand blue (matches the favicon),
+ * and status colors reserved for meaning: green = delivered/healthy,
+ * amber = soft bounce/elevated, red = hard bounce/complaint/danger.
+ * Values are RGB channels so Tailwind opacity modifiers work.
+ */
+:root {
+  --bg: 10 10 11;
+  --bg-subtle: 14 14 16;
+  --bg-card: 19 19 22;
+  --bg-hover: 27 27 31;
+  --bg-inset: 7 7 8;
+  --border: 37 37 42;
+  --border-subtle: 27 27 31;
+  --border-strong: 52 52 59;
+  --fg: 236 236 240;
+  --fg-muted: 160 160 171;
+  --fg-subtle: 112 112 123;
+  --accent: 91 141 239;
+  --green: 74 196 139;
+  --red: 240 104 100;
+  --yellow: 230 172 62;
+  --purple: 160 140 245;
+  color-scheme: dark;
 }
 
-* { border-color: #222838; }
+@layer base {
+  html,
+  body {
+    @apply bg-bg text-fg;
+    min-height: 100vh;
+  }
+  * {
+    @apply border-border;
+  }
+  body {
+    font-feature-settings: "ss01", "cv01";
+  }
+  ::selection {
+    @apply bg-accent/30;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/60 ring-offset-0;
+  }
+  /* Numbers line up in columns everywhere. */
+  .num,
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+}
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222838; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #2c3346; }
+@layer components {
+  .card {
+    @apply rounded-lg border border-border bg-bg-card;
+  }
+  .eyebrow {
+    @apply text-2xs font-medium uppercase tracking-[0.08em] text-fg-subtle;
+  }
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-bg-card px-3.5 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:bg-bg-hover hover:text-fg;
+  }
+  .btn-primary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md bg-accent px-3.5 text-sm font-medium text-white transition-colors hover:bg-accent/90;
+  }
+  .input {
+    @apply h-9 rounded-md border border-border bg-bg-inset px-3 text-sm text-fg transition-colors placeholder:text-fg-subtle hover:border-border-strong focus:border-accent/70 focus:outline-none focus:ring-2 focus:ring-accent/20;
+  }
+  .select {
+    @apply input appearance-none bg-no-repeat pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2370707b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-size: 14px;
+  }
+
+  /* Data tables */
+  .data-table {
+    @apply w-full text-sm;
+  }
+  .data-table thead {
+    @apply border-b border-border bg-bg-subtle/60;
+  }
+  .data-table th {
+    @apply eyebrow whitespace-nowrap px-4 py-2.5 text-left;
+  }
+  .data-table td {
+    @apply px-4 py-2.5;
+  }
+  .data-table tbody tr {
+    @apply border-t border-border-subtle transition-colors first:border-t-0 hover:bg-bg-hover/50;
+  }
+
+  .link {
+    @apply text-accent hover:text-accent/80 hover:underline underline-offset-2;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--border-strong));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

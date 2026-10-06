@@ -32,12 +32,16 @@ so you can answer questions like:
 
 ## Features
 
-- **Overview** — sends, delivery rate, bounce rate, complaint rate, open
-  rate, click rate, plus an estimated cost for the selected range
-  (default $0.10 per 1,000 recipients, configurable). Rate cards are tinted
-  against [SES reputation limits](https://docs.aws.amazon.com/ses/latest/dg/reputationdashboard-faqs.html).
-  Includes a time-series chart of sends and bounces (hourly for 24h, daily for 7d/30d)
-- **Per-domain breakdown** — same metrics grouped by sending domain
+- **Overview** — sent, delivered, opened, clicked, rejected and estimated
+  cost for the selected range (default $0.10 per 1,000 recipients,
+  configurable), and a chart of daily (or hourly) volume split into
+  delivered, bounced and other
+- **Sending reputation gauges** — bounce and complaint rates plotted
+  against the [SES thresholds](https://docs.aws.amazon.com/ses/latest/dg/reputationdashboard-faqs.html)
+  where AWS reviews your account (5% / 0.1%) and may pause sending
+  (10% / 0.5%), so you see how close you are before AWS emails you
+- **Per-domain breakdown** — the same metrics per sending domain, with
+  inline bars for delivery and bounce rates
 - **Email logs** — filter by sending domain, latest event type, or free-text
   (subject / from / recipient); drill into any message to see its event
   timeline with bounce diagnostics and open/click IPs

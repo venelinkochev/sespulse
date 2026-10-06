@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { getRecipient } from "@/lib/queries";
 import { bareAddress, recipientHref } from "@/lib/address";
 import { EventBadge } from "@/components/EventBadge";
-import { StatCard } from "@/components/StatCard";
+import { Metric, MetricStrip } from "@/components/Metrics";
+import { PageHeader, SectionTitle } from "@/components/PageHeader";
 import { timeAgo } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,9 @@ export const dynamic = "force-dynamic";
 const fmt = (n: number) => n.toLocaleString();
 const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
 
-// Same thresholds as the Overview delivery-rate card.
+// Same thresholds as the Overview delivery rate.
 function deliveryTone(rate: number | null) {
-  if (rate === null) return "default" as const;
+  if (rate === null) return undefined;
   return rate >= 95 ? ("good" as const) : rate >= 85 ? ("warn" as const) : ("bad" as const);
 }
 
@@ -36,112 +37,113 @@ export default async function RecipientPage({
   const hasMultiRecipient = messages.some((m) => m.recipientCount > 1);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href="/recipients" className="text-fg-muted text-sm hover:text-fg">
-          ← Recipients
-        </Link>
-        <h1 className="mt-2 text-xl font-semibold font-mono break-all">
-          {summary.address}
-        </h1>
-        <p className="text-sm text-fg-muted mt-1">
-          {fmt(summary.messages)} message{summary.messages === 1 ? "" : "s"}
-          {summary.firstSentAt &&
-            ` · first sent ${summary.firstSentAt.toLocaleDateString()}`}
-          {summary.lastSentAt && ` · last sent ${timeAgo(summary.lastSentAt)}`}
-        </p>
-      </div>
+    <>
+      <PageHeader
+        back={
+          <Link href="/recipients" className="text-fg-subtle hover:text-fg">
+            ← Recipients
+          </Link>
+        }
+        title={<span className="break-all font-mono text-lg">{summary.address}</span>}
+        description={
+          <>
+            {fmt(summary.messages)} message{summary.messages === 1 ? "" : "s"}
+            {summary.firstSentAt && ` · first sent ${summary.firstSentAt.toLocaleDateString()}`}
+            {summary.lastSentAt && ` · last sent ${timeAgo(summary.lastSentAt)}`}
+          </>
+        }
+      />
 
       <RecipientAlert summary={summary} />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard
-          label="Delivery rate"
+      <MetricStrip>
+        <Metric
+          label="Delivered"
           value={pct(summary.deliveryRate)}
-          sublabel={`${fmt(summary.delivered)} of ${fmt(summary.tracked)} delivered`}
-          tone={deliveryTone(summary.deliveryRate)}
+          sub={`${fmt(summary.delivered)} of ${fmt(summary.tracked)}`}
+          dot={deliveryTone(summary.deliveryRate)}
         />
-        <StatCard
+        <Metric
+          label="Opened"
+          value={pct(summary.openRate)}
+          sub={`${fmt(summary.openedDelivered)} of ${fmt(summary.delivered)} delivered`}
+        />
+        <Metric label="Clicked" value={fmt(summary.clicked)} sub="messages" />
+        <Metric
           label="Hard bounces"
           value={fmt(summary.hardBounced)}
-          tone={summary.hardBounced > 0 ? "bad" : "default"}
+          dot={summary.hardBounced > 0 ? "bad" : undefined}
         />
-        <StatCard
+        <Metric
           label="Soft bounces"
           value={fmt(summary.softBounced)}
-          tone={summary.softBounced > 0 ? "warn" : "default"}
+          dot={summary.softBounced > 0 ? "warn" : undefined}
         />
-        <StatCard
+        <Metric
           label="Complaints"
           value={fmt(summary.complained)}
-          tone={summary.complained > 0 ? "bad" : "default"}
+          dot={summary.complained > 0 ? "bad" : undefined}
         />
-        <StatCard
-          label="Open rate"
-          value={pct(summary.openRate)}
-          sublabel={`${fmt(summary.openedDelivered)} of ${fmt(summary.delivered)} delivered opened · ${fmt(summary.clicked)} clicked`}
-        />
-      </div>
+      </MetricStrip>
 
-      <div>
-        <h2 className="text-sm uppercase tracking-wide text-fg-subtle mb-3">
-          Messages{messages.length < summary.messages && ` (latest ${messages.length})`}
-        </h2>
-        <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
+      <section>
+        <SectionTitle
+          description={
+            messages.length < summary.messages
+              ? `Latest ${messages.length} of ${fmt(summary.messages)}`
+              : undefined
+          }
+        >
+          Messages
+        </SectionTitle>
+        <div className="card overflow-x-auto">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left">Sent</th>
-                <th className="px-4 py-3 text-left">From</th>
-                <th className="px-4 py-3 text-left">Subject</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3" />
+                <th className="w-24">Sent</th>
+                <th>Subject</th>
+                <th>From</th>
+                <th className="w-64">Status</th>
               </tr>
             </thead>
             <tbody>
               {messages.map((m) => (
-                <tr
-                  key={m.messageId}
-                  className="border-t border-border-subtle hover:bg-bg-hover/40"
-                >
+                <tr key={m.messageId}>
                   <td
-                    className="px-4 py-3 text-fg-muted whitespace-nowrap"
+                    className="whitespace-nowrap font-mono text-xs text-fg-subtle"
                     title={m.sentAt.toLocaleString()}
                   >
                     {timeAgo(m.sentAt)}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs">{m.fromAddress}</td>
-                  <td className="px-4 py-3 max-w-xs truncate">
-                    {m.subject ?? (
-                      <span className="text-fg-subtle">(no subject)</span>
-                    )}
-                    {m.recipientCount > 1 && (
-                      <span className="ml-2 text-xs text-fg-subtle">
-                        +{m.recipientCount - 1} other
-                        {m.recipientCount > 2 ? "s" : ""}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col items-start gap-1">
-                      <EventBadge type={m.status} bounceType={m.bounceType} />
-                      {m.status === "Bounce" && m.diagnostic && (
-                        <span
-                          className="max-w-xs truncate font-mono text-xs text-fg-subtle"
-                          title={m.diagnostic}
-                        >
-                          {m.diagnostic}
+                  <td className="max-w-[22rem]">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/logs/${encodeURIComponent(m.messageId)}`}
+                        className="truncate text-fg hover:text-accent"
+                        title={m.subject ?? undefined}
+                      >
+                        {m.subject ?? <span className="text-fg-subtle">(no subject)</span>}
+                      </Link>
+                      {m.recipientCount > 1 && (
+                        <span className="shrink-0 font-mono text-2xs text-fg-subtle">
+                          +{m.recipientCount - 1}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/logs/${encodeURIComponent(m.messageId)}`}
-                      className="text-accent text-xs hover:underline"
-                    >
-                      Details →
-                    </Link>
+                  <td className="whitespace-nowrap font-mono text-xs text-fg-subtle">
+                    {m.fromAddress}
+                  </td>
+                  <td>
+                    <EventBadge type={m.status} bounceType={m.bounceType} />
+                    {m.status === "Bounce" && m.diagnostic && (
+                      <div
+                        className="mt-0.5 max-w-[16rem] truncate font-mono text-2xs text-fg-subtle"
+                        title={m.diagnostic}
+                      >
+                        {m.diagnostic}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -156,8 +158,8 @@ export default async function RecipientPage({
             on it.
           </p>
         )}
-      </div>
-    </div>
+      </section>
+    </>
   );
 }
 
@@ -208,13 +210,11 @@ function Banner({
   title: string;
   children: React.ReactNode;
 }) {
-  const cls =
-    tone === "red"
-      ? "border-accent-red/40 bg-accent-red/10"
-      : "border-accent-yellow/40 bg-accent-yellow/10";
+  const bar = tone === "red" ? "bg-accent-red" : "bg-accent-yellow";
   const titleCls = tone === "red" ? "text-accent-red" : "text-accent-yellow";
   return (
-    <div className={`rounded-lg border p-4 text-sm ${cls}`}>
+    <div className="card relative overflow-hidden py-3.5 pl-5 pr-4 text-sm">
+      <span className={`absolute inset-y-0 left-0 w-[3px] ${bar}`} />
       <div className={`font-medium ${titleCls}`}>{title}</div>
       <div className="mt-1 text-fg-muted">{children}</div>
     </div>
@@ -223,6 +223,8 @@ function Banner({
 
 function Diagnostic({ text }: { text: string }) {
   return (
-    <div className="mt-2 font-mono text-xs text-fg-muted break-words">{text}</div>
+    <div className="mt-2 break-words rounded-md border border-border-subtle bg-bg-inset px-3 py-2 font-mono text-xs text-fg-muted">
+      {text}
+    </div>
   );
 }
