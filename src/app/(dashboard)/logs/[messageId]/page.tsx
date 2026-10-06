@@ -73,7 +73,7 @@ export default async function MessagePage({
                   </span>
                   <span className="font-mono text-xs text-fg-subtle">{at.toLocaleString()}</span>
                   {prev && (
-                    <span className="font-mono text-2xs text-fg-subtle/80">
+                    <span className="font-mono text-2xs text-fg-subtle">
                       {delta(at.getTime() - prev.getTime())}
                     </span>
                   )}

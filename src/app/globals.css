@@ -18,8 +18,9 @@
   --border-subtle: 27 27 31;
   --border-strong: 52 52 59;
   --fg: 236 236 240;
-  --fg-muted: 160 160 171;
-  --fg-subtle: 112 112 123;
+  /* Contrast on --bg-card: muted 9.0:1, subtle 6.0:1 (WCAG AA needs 4.5:1). */
+  --fg-muted: 180 180 190;
+  --fg-subtle: 146 146 157;
   --accent: 91 141 239;
   --green: 74 196 139;
   --red: 240 104 100;
@@ -72,7 +73,7 @@
   }
   .select {
     @apply input appearance-none bg-no-repeat pr-8;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2370707b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2392929d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.6rem center;
     background-size: 14px;
   }
