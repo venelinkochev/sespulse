@@ -478,12 +478,22 @@ function recipientDiagnostic(key: string) {
 export interface RecipientSummary {
   address: string;
   messages: number;
+  // Messages with at least one delivery-lifecycle event for this address
+  // (same denominator rule as the Overview page).
+  tracked: number;
+  // Delivered and not later bounced/rejected for this address.
   delivered: number;
   hardBounced: number;
   softBounced: number;
   complained: number;
   opened: number;
   clicked: number;
+  // Delivered messages that were also opened (numerator of openRate).
+  openedDelivered: number;
+  // delivered / tracked and openedDelivered / delivered, as percentages;
+  // null when the denominator is 0.
+  deliveryRate: number | null;
+  openRate: number | null;
   firstSentAt: Date | null;
   lastSentAt: Date | null;
   lastBounce: {
@@ -521,6 +531,7 @@ export async function getRecipient(address: string): Promise<{
   const [summaryRows, bounceRows, messageRows] = await Promise.all([
     db.execute<{
       messages: string;
+      tracked: string;
       first_sent_at: string | null;
       last_sent_at: string | null;
       delivered: string;
@@ -528,6 +539,7 @@ export async function getRecipient(address: string): Promise<{
       soft_bounced: string;
       complained: string;
       opened: string;
+      opened_delivered: string;
       clicked: string;
       last_complaint_at: string | null;
     }>(sql`
@@ -541,16 +553,34 @@ export async function getRecipient(address: string): Promise<{
         FROM events e
         JOIN msgs m ON m.message_id = e.message_id
         WHERE ${applies}
+      ),
+      -- Accepted by the receiving server, then bounced or rejected later:
+      -- counted as a failure, not a delivery, as on the Overview page.
+      failed AS (
+        SELECT DISTINCT message_id FROM ev
+        WHERE event_type IN ('Bounce', 'Reject')
+      ),
+      delivered AS (
+        SELECT DISTINCT message_id FROM ev
+        WHERE event_type = 'Delivery'
+          AND message_id NOT IN (SELECT message_id FROM failed)
       )
       SELECT
         (SELECT COUNT(*) FROM msgs)::text AS messages,
+        COUNT(DISTINCT message_id) FILTER (
+          WHERE event_type IN ('Send','Delivery','Bounce','Complaint','Reject','RenderingFailure','DeliveryDelay')
+        )::text AS tracked,
         (SELECT MIN(sent_at) FROM msgs) AS first_sent_at,
         (SELECT MAX(sent_at) FROM msgs) AS last_sent_at,
-        COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Delivery')::text AS delivered,
+        (SELECT COUNT(*) FROM delivered)::text AS delivered,
         COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Bounce' AND bounce_type = 'Permanent')::text AS hard_bounced,
         COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Bounce' AND bounce_type IS DISTINCT FROM 'Permanent')::text AS soft_bounced,
         COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Complaint')::text AS complained,
         COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Open')::text AS opened,
+        COUNT(DISTINCT message_id) FILTER (
+          WHERE event_type = 'Open'
+            AND message_id IN (SELECT message_id FROM delivered)
+        )::text AS opened_delivered,
         COUNT(DISTINCT message_id) FILTER (WHERE event_type = 'Click')::text AS clicked,
         MAX(occurred_at) FILTER (WHERE event_type = 'Complaint') AS last_complaint_at
       FROM ev
@@ -607,17 +637,25 @@ export async function getRecipient(address: string): Promise<{
 
   const s = summaryRows[0];
   const b = bounceRows[0];
+  const tracked = Number(s?.tracked ?? 0);
+  const delivered = Number(s?.delivered ?? 0);
+  const openedDelivered = Number(s?.opened_delivered ?? 0);
+  const rate = (n: number, d: number) => (d === 0 ? null : (n / d) * 100);
   const d = (v: string | null | undefined) => (v ? new Date(v) : null);
   return {
     summary: {
       address: key,
       messages: Number(s?.messages ?? 0),
-      delivered: Number(s?.delivered ?? 0),
+      tracked,
+      delivered,
       hardBounced: Number(s?.hard_bounced ?? 0),
       softBounced: Number(s?.soft_bounced ?? 0),
       complained: Number(s?.complained ?? 0),
       opened: Number(s?.opened ?? 0),
+      openedDelivered,
       clicked: Number(s?.clicked ?? 0),
+      deliveryRate: rate(delivered, tracked),
+      openRate: rate(openedDelivered, delivered),
       firstSentAt: d(s?.first_sent_at),
       lastSentAt: d(s?.last_sent_at),
       lastComplaintAt: d(s?.last_complaint_at),
@@ -649,6 +687,9 @@ export interface ProblemRecipientRow {
   hardBounces: number;
   softBounces: number;
   complaints: number;
+  // Sending domains of the bounced/complained messages, i.e. which
+  // project(s) the problem came from.
+  fromDomains: string[];
   lastAt: Date;
   lastDiagnostic: string | null;
 }
@@ -664,6 +705,7 @@ export async function getProblemRecipients(
     hard_bounces: string;
     soft_bounces: string;
     complaints: string;
+    from_domains: string[];
     last_at: string;
     last_diagnostic: string | null;
   }>(sql`
@@ -672,8 +714,10 @@ export async function getProblemRecipients(
         sespulse_bare_address(r->>'emailAddress') AS address,
         CASE WHEN e.bounce_type = 'Permanent' THEN 'hard' ELSE 'soft' END AS kind,
         e.occurred_at,
-        COALESCE(r->>'diagnosticCode', e.diagnostic) AS diagnostic
-      FROM events e,
+        COALESCE(r->>'diagnosticCode', e.diagnostic) AS diagnostic,
+        m.from_domain
+      FROM events e
+        JOIN messages m ON m.message_id = e.message_id,
         jsonb_array_elements(e.payload->'bounce'->'bouncedRecipients') r
       WHERE e.event_type = 'Bounce'
         AND e.occurred_at >= NOW() - (${interval})::interval
@@ -682,8 +726,10 @@ export async function getProblemRecipients(
         sespulse_bare_address(r->>'emailAddress') AS address,
         'complaint' AS kind,
         e.occurred_at,
-        e.complaint_feedback_type AS diagnostic
-      FROM events e,
+        e.complaint_feedback_type AS diagnostic,
+        m.from_domain
+      FROM events e
+        JOIN messages m ON m.message_id = e.message_id,
         jsonb_array_elements(e.payload->'complaint'->'complainedRecipients') r
       WHERE e.event_type = 'Complaint'
         AND e.occurred_at >= NOW() - (${interval})::interval
@@ -693,6 +739,7 @@ export async function getProblemRecipients(
       COUNT(*) FILTER (WHERE kind = 'hard')::text AS hard_bounces,
       COUNT(*) FILTER (WHERE kind = 'soft')::text AS soft_bounces,
       COUNT(*) FILTER (WHERE kind = 'complaint')::text AS complaints,
+      ARRAY_AGG(DISTINCT from_domain ORDER BY from_domain) AS from_domains,
       MAX(occurred_at) AS last_at,
       (ARRAY_AGG(diagnostic ORDER BY occurred_at DESC))[1] AS last_diagnostic
     FROM hits
@@ -710,6 +757,7 @@ export async function getProblemRecipients(
     hardBounces: Number(r.hard_bounces),
     softBounces: Number(r.soft_bounces),
     complaints: Number(r.complaints),
+    fromDomains: r.from_domains,
     lastAt: new Date(r.last_at),
     lastDiagnostic: r.last_diagnostic,
   }));
