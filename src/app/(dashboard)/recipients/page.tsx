@@ -63,7 +63,7 @@ export default async function RecipientsPage({
           Search
         </button>
         {q && (
-          <Link href={`/recipients?range=${range}`} className="px-1 text-xs text-fg-subtle hover:text-fg">
+          <Link href={`/recipients?range=${range}`} className="px-1 text-xs text-fg-muted hover:text-fg">
             Clear
           </Link>
         )}
@@ -93,13 +93,13 @@ export default async function RecipientsPage({
                 )}
                 {matches.map((r) => (
                   <tr key={r.address}>
-                    <td className="font-mono text-xs">
+                    <td>
                       <Link href={recipientHref(r.address)} className="text-fg hover:text-accent">
                         {r.address}
                       </Link>
                     </td>
-                    <td className="text-right font-mono text-[13px]">{fmt(r.messages)}</td>
-                    <td className="whitespace-nowrap text-right font-mono text-xs text-fg-subtle">
+                    <td className="num text-right">{fmt(r.messages)}</td>
+                    <td className="num whitespace-nowrap text-right text-fg-muted">
                       {timeAgo(r.lastSentAt)}
                     </td>
                   </tr>
@@ -140,24 +140,24 @@ export default async function RecipientsPage({
               )}
               {problems.map((r) => (
                 <tr key={r.address}>
-                  <td className="font-mono text-xs">
+                  <td>
                     <Link href={recipientHref(r.address)} className="text-fg hover:text-accent">
                       {r.address}
                     </Link>
                   </td>
-                  <td className="text-xs">
+                  <td>
                     <SendingDomains domains={r.fromDomains} address={r.address} />
                   </td>
                   <Count n={r.complaints} tone="text-accent-red" />
                   <Count n={r.hardBounces} tone="text-accent-red" />
                   <Count n={r.softBounces} tone="text-accent-yellow" />
                   <td
-                    className="max-w-[18rem] truncate font-mono text-2xs text-fg-subtle"
+                    className="max-w-[18rem] truncate font-mono text-xs text-fg-subtle"
                     title={r.lastDiagnostic ?? undefined}
                   >
                     {r.lastDiagnostic ?? "—"}
                   </td>
-                  <td className="whitespace-nowrap text-right font-mono text-xs text-fg-subtle">
+                  <td className="num whitespace-nowrap text-right text-fg-muted">
                     {timeAgo(r.lastAt)}
                   </td>
                 </tr>
@@ -172,7 +172,7 @@ export default async function RecipientsPage({
 
 function Count({ n, tone }: { n: number; tone: string }) {
   return (
-    <td className={`text-right font-mono text-[13px] ${n > 0 ? tone : "text-fg-subtle/60"}`}>
+    <td className={`num text-right ${n > 0 ? tone : "text-fg-subtle/60"}`}>
       {n > 0 ? n.toLocaleString() : "·"}
     </td>
   );
@@ -200,7 +200,7 @@ function SendingDomains({
           {d}
         </Link>
       ))}
-      {hidden > 0 && <span className="text-2xs text-fg-subtle">+{hidden} more</span>}
+      {hidden > 0 && <span className="t-caption">+{hidden} more</span>}
     </div>
   );
 }

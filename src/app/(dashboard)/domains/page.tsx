@@ -66,25 +66,25 @@ export default async function DomainsPage({
                     {r.domain}
                   </Link>
                 </td>
-                <td className="text-right font-mono text-[13px]">{fmt(r.sent)}</td>
+                <td className="num text-right">{fmt(r.sent)}</td>
                 <td>
                   <RateBar value={r.deliveryRate} tone={deliveryTone(r.deliveryRate)} />
                 </td>
                 <td>
                   <RateBar value={r.bounceRate} scaleMax={10} tone={bounceTone(r.bounceRate)} />
-                  <div className="mt-0.5 text-right font-mono text-2xs text-fg-subtle">
+                  <div className="t-caption num mt-0.5 text-right">
                     {fmt(r.hardBounced)} hard · {fmt(r.softBounced)} soft
                   </div>
                 </td>
                 <td
-                  className={`text-right font-mono text-[13px] ${r.complained > 0 ? "text-accent-red" : "text-fg-subtle"}`}
+                  className={`num text-right ${r.complained > 0 ? "text-accent-red" : "text-fg-subtle"}`}
                 >
                   {fmt(r.complained)}
                 </td>
                 <td>
                   <RateBar value={r.openRate} tone="neutral" />
                 </td>
-                <td className="text-right font-mono text-[13px] text-fg-muted">{fmt(r.clicked)}</td>
+                <td className="num text-right text-fg-muted">{fmt(r.clicked)}</td>
               </tr>
             ))}
           </tbody>

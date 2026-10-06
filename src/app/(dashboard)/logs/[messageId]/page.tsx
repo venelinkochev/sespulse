@@ -71,14 +71,14 @@ export default async function MessagePage({
                   <span className="font-medium">
                     <EventBadge type={e.event_type} bounceType={e.bounce_type} dot={false} />
                   </span>
-                  <span className="font-mono text-xs text-fg-subtle">{at.toLocaleString()}</span>
+                  <span className="num text-ui text-fg-muted">{at.toLocaleString()}</span>
                   {prev && (
-                    <span className="font-mono text-2xs text-fg-subtle">
+                    <span className="num text-xs text-fg-subtle">
                       {delta(at.getTime() - prev.getTime())}
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 space-y-1 text-sm text-fg-muted">
+                <div className="mt-1.5 space-y-1.5 text-ui text-fg-muted">
                   {e.bounce_type && (
                     <div className="text-xs text-fg-subtle">
                       {e.bounce_type}
@@ -128,7 +128,7 @@ function Field({
   return (
     <div className="px-4 py-3">
       <dt className="eyebrow">{label}</dt>
-      <dd className="mt-1 break-words font-mono text-xs">{children ?? value}</dd>
+      <dd className="mt-1 break-words text-ui">{children ?? value}</dd>
     </div>
   );
 }

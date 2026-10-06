@@ -1,17 +1,17 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
-// Self-hosted at build time by next/font; no request to Google at runtime.
-const sans = IBM_Plex_Sans({
+// Geist for the interface, Geist Mono for metric values and machine output
+// (message IDs, SMTP diagnostics). Self-hosted at build time by next/font;
+// no request to Google at runtime.
+const sans = Geist({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
   variable: "--font-sans",
   display: "swap",
 });
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["400", "500"],
   variable: "--font-mono",
   display: "swap",
 });

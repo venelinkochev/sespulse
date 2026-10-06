@@ -35,7 +35,7 @@ export function AutoRefresh({
   const seconds = Math.round(intervalMs / 1000);
   return (
     <div
-      className="text-2xs text-fg-subtle"
+      className="t-caption"
       title={`Dashboard data refreshes every ${seconds}s while this tab is visible`}
     >
       Auto-refresh · {seconds}s

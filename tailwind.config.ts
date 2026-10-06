@@ -37,11 +37,24 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: [
+          "var(--font-sans)",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "sans-serif",
+        ],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
+      // Type scale. 11px is reserved for uppercase labels and threshold
+      // labels; anything people need to read is 12px or larger.
       fontSize: {
-        "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+        "2xs": ["11px", { lineHeight: "16px" }],
+        xs: ["12px", { lineHeight: "17px" }],
+        ui: ["13px", { lineHeight: "19px" }],
+        sm: ["14px", { lineHeight: "20px" }],
       },
       keyframes: {
         trace: {

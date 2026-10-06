@@ -44,7 +44,7 @@ export default async function RecipientPage({
             ← Recipients
           </Link>
         }
-        title={<span className="break-all font-mono text-lg">{summary.address}</span>}
+        title={<span className="break-all">{summary.address}</span>}
         description={
           <>
             {fmt(summary.messages)} message{summary.messages === 1 ? "" : "s"}
@@ -110,7 +110,7 @@ export default async function RecipientPage({
               {messages.map((m) => (
                 <tr key={m.messageId}>
                   <td
-                    className="whitespace-nowrap font-mono text-xs text-fg-subtle"
+                    className="num whitespace-nowrap text-fg-muted"
                     title={m.sentAt.toLocaleString()}
                   >
                     {timeAgo(m.sentAt)}
@@ -125,20 +125,20 @@ export default async function RecipientPage({
                         {m.subject ?? <span className="text-fg-subtle">(no subject)</span>}
                       </Link>
                       {m.recipientCount > 1 && (
-                        <span className="shrink-0 font-mono text-2xs text-fg-subtle">
+                        <span className="t-caption num shrink-0">
                           +{m.recipientCount - 1}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap font-mono text-xs text-fg-subtle">
+                  <td className="whitespace-nowrap text-fg-muted">
                     {m.fromAddress}
                   </td>
                   <td>
                     <EventBadge type={m.status} bounceType={m.bounceType} />
                     {m.status === "Bounce" && m.diagnostic && (
                       <div
-                        className="mt-0.5 max-w-[16rem] truncate font-mono text-2xs text-fg-subtle"
+                        className="mt-0.5 max-w-[16rem] truncate font-mono text-xs text-fg-subtle"
                         title={m.diagnostic}
                       >
                         {m.diagnostic}
@@ -151,7 +151,7 @@ export default async function RecipientPage({
           </table>
         </div>
         {hasMultiRecipient && (
-          <p className="mt-2 text-xs text-fg-subtle">
+          <p className="t-caption mt-2">
             Deliveries, bounces and complaints are matched to this address
             exactly. SES doesn&apos;t say which recipient opened or clicked a
             multi-recipient message, so those are counted for every recipient

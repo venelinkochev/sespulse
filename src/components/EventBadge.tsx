@@ -63,7 +63,7 @@ export function EventBadge({
 
   return (
     <span
-      className="inline-flex items-center gap-2 whitespace-nowrap text-[13px] text-fg"
+      className="inline-flex items-center gap-2 whitespace-nowrap text-ui text-fg"
       title={tooltip}
     >
       {showDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />}

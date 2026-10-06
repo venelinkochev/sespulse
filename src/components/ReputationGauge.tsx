@@ -52,12 +52,12 @@ export function ReputationGauge({
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="eyebrow">{label}</div>
-          <div className="num mt-2 font-mono text-3xl font-medium tracking-tight">
+          <div className="t-metric mt-2">
             {sampleSize === 0 ? "—" : fmtPct(value, digits)}
           </div>
         </div>
         {style && (
-          <div className={`mt-0.5 flex items-center gap-1.5 text-xs font-medium ${style.text}`}>
+          <div className={`mt-1 flex items-center gap-1.5 text-xs font-medium ${style.text}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${style.fill}`} />
             {style.label}
           </div>
@@ -65,7 +65,7 @@ export function ReputationGauge({
       </div>
 
       {/* Track */}
-      <div className="relative mt-5 mb-6">
+      <div className="relative mb-8 mt-5">
         <div className="h-1.5 overflow-hidden rounded-full bg-bg-inset ring-1 ring-inset ring-border-subtle">
           {style && (
             <div
@@ -78,7 +78,7 @@ export function ReputationGauge({
         <Marker at={pos(thresholds.pause)} label={`${fmtPct(thresholds.pause, thresholds.pause < 1 ? 1 : 0)} pause`} />
       </div>
 
-      <div className="text-xs text-fg-muted">{detail}</div>
+      <div className="text-ui text-fg-muted">{detail}</div>
     </div>
   );
 }
@@ -87,7 +87,7 @@ function Marker({ at, label }: { at: string; label: string }) {
   return (
     <div className="absolute top-[-3px]" style={{ left: at }}>
       <div className="h-3 w-px -translate-x-1/2 bg-fg-subtle" />
-      <div className="mt-1 -translate-x-1/2 whitespace-nowrap font-mono text-2xs text-fg-subtle">
+      <div className="mt-1.5 -translate-x-1/2 whitespace-nowrap font-mono text-2xs text-fg-muted">
         {label}
       </div>
     </div>
