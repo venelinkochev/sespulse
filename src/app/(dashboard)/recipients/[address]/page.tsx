@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRecipient } from "@/lib/queries";
-import { bareAddress, recipientHref } from "@/lib/address";
+import { bareAddress, emailOnly, recipientHref } from "@/lib/address";
 import { EventBadge } from "@/components/EventBadge";
 import { Metric, MetricStrip } from "@/components/Metrics";
 import { PageHeader, SectionTitle } from "@/components/PageHeader";
@@ -132,7 +132,7 @@ export default async function RecipientPage({
                     </div>
                   </td>
                   <td className="whitespace-nowrap text-fg-muted">
-                    {m.fromAddress}
+                    {emailOnly(m.fromAddress)}
                   </td>
                   <td>
                     <EventBadge type={m.status} bounceType={m.bounceType} />

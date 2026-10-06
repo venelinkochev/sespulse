@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getMessageWithEvents } from "@/lib/queries";
 import { EventBadge, eventDotClass } from "@/components/EventBadge";
 import { PageHeader } from "@/components/PageHeader";
-import { recipientHref } from "@/lib/address";
+import { emailOnly, recipientHref } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 
@@ -41,14 +41,14 @@ export default async function MessagePage({
       />
 
       <dl className="card grid grid-cols-1 overflow-hidden sm:grid-cols-2 lg:grid-cols-4 [&>div]:-mb-px [&>div]:-mr-px [&>div]:border-b [&>div]:border-r [&>div]:border-border-subtle">
-        <Field label="From" value={message.from_address} />
+        <Field label="From" value={emailOnly(message.from_address)} />
         <Field label="Sending domain" value={message.from_domain} />
         <Field label="To">
           {message.to_addresses.map((addr, i) => (
-            <span key={addr}>
+            <span key={emailOnly(addr)}>
               {i > 0 && ", "}
               <Link href={recipientHref(addr)} className="link">
-                {addr}
+                {emailOnly(addr)}
               </Link>
             </span>
           ))}

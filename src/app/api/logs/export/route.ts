@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { iterateLogs, type LogRow } from "@/lib/queries";
 import { csvRow } from "@/lib/csv";
+import { emailOnly } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,9 +27,9 @@ function toCsv(r: LogRow): string {
   return csvRow([
     r.sentAt.toISOString(),
     r.messageId,
-    r.fromAddress,
+    emailOnly(r.fromAddress),
     r.fromDomain,
-    r.toAddresses.join("; "),
+    r.toAddresses.map(emailOnly).join("; "),
     r.subject,
     r.lastEventType,
     r.lastBounceType,
