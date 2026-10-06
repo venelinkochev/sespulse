@@ -9,6 +9,13 @@ import { timeAgo } from "@/lib/time";
 export const dynamic = "force-dynamic";
 
 const fmt = (n: number) => n.toLocaleString();
+const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
+
+// Same thresholds as the Overview delivery-rate card.
+function deliveryTone(rate: number | null) {
+  if (rate === null) return "default" as const;
+  return rate >= 95 ? ("good" as const) : rate >= 85 ? ("warn" as const) : ("bad" as const);
+}
 
 export default async function RecipientPage({
   params,
@@ -49,9 +56,10 @@ export default async function RecipientPage({
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard
-          label="Delivered"
-          value={fmt(summary.delivered)}
-          tone={summary.delivered > 0 ? "good" : "default"}
+          label="Delivery rate"
+          value={pct(summary.deliveryRate)}
+          sublabel={`${fmt(summary.delivered)} of ${fmt(summary.tracked)} delivered`}
+          tone={deliveryTone(summary.deliveryRate)}
         />
         <StatCard
           label="Hard bounces"
@@ -69,8 +77,9 @@ export default async function RecipientPage({
           tone={summary.complained > 0 ? "bad" : "default"}
         />
         <StatCard
-          label="Opened / clicked"
-          value={`${fmt(summary.opened)} / ${fmt(summary.clicked)}`}
+          label="Open rate"
+          value={pct(summary.openRate)}
+          sublabel={`${fmt(summary.openedDelivered)} of ${fmt(summary.delivered)} delivered opened · ${fmt(summary.clicked)} clicked`}
         />
       </div>
 

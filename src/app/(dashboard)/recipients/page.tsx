@@ -140,6 +140,7 @@ export default async function RecipientsPage({
             <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
               <tr>
                 <th className="px-4 py-3 text-left">Address</th>
+                <th className="px-4 py-3 text-left">Sent from</th>
                 <th className="px-4 py-3 text-right">Complaints</th>
                 <th className="px-4 py-3 text-right">Hard</th>
                 <th className="px-4 py-3 text-right">Soft</th>
@@ -151,7 +152,7 @@ export default async function RecipientsPage({
             <tbody>
               {problems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
+                  <td colSpan={8} className="px-4 py-8 text-center text-fg-muted">
                     No bounces or complaints in this range.
                   </td>
                 </tr>
@@ -162,6 +163,9 @@ export default async function RecipientsPage({
                   className="border-t border-border-subtle hover:bg-bg-hover/40"
                 >
                   <td className="px-4 py-3 font-mono text-xs">{r.address}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <SendingDomains domains={r.fromDomains} address={r.address} />
+                  </td>
                   <td
                     className={`px-4 py-3 text-right font-mono ${
                       r.complaints > 0 ? "text-accent-red" : "text-fg-subtle"
@@ -206,6 +210,33 @@ export default async function RecipientsPage({
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+// Which project(s) the bounces/complaints came from. Each domain links to
+// the logs for this address from that domain. Shows two, then "+N".
+function SendingDomains({
+  domains,
+  address,
+}: {
+  domains: string[];
+  address: string;
+}) {
+  const shown = domains.slice(0, 2);
+  const hidden = domains.length - shown.length;
+  return (
+    <div className="flex flex-col items-start gap-0.5" title={domains.join("\n")}>
+      {shown.map((d) => (
+        <Link
+          key={d}
+          href={`/logs?${new URLSearchParams({ domain: d, q: address })}`}
+          className="text-fg-muted hover:text-accent hover:underline whitespace-nowrap"
+        >
+          {d}
+        </Link>
+      ))}
+      {hidden > 0 && <span className="text-fg-subtle">+{hidden} more</span>}
     </div>
   );
 }
