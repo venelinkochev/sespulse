@@ -3,6 +3,7 @@ import { getDistinctDomains, getLogs } from "@/lib/queries";
 import { EventBadge } from "@/components/EventBadge";
 import { timeAgo } from "@/lib/time";
 import { recipientHref } from "@/lib/address";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -51,145 +52,129 @@ export default async function LogsPage({
     exportParams.size ? `?${exportParams}` : ""
   }`;
 
+  const filtered = Boolean(domain || eventType || q);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Email Logs</h1>
-        <p className="text-sm text-fg-muted">
-          The 200 most recent messages with their latest event. Export CSV
-          for every match.
-        </p>
-      </div>
-
-      <form
-        method="GET"
-        className="flex flex-wrap items-center gap-3 text-sm"
-      >
-        <input
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Search subject, from, recipient…"
-          className="w-72 rounded-md border border-border bg-bg-card px-3 py-2 placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-        />
-        <select
-          name="domain"
-          defaultValue={domain ?? ""}
-          className="rounded-md border border-border bg-bg-card px-3 py-2"
-        >
-          <option value="">All domains</option>
-          {domains.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          name="event"
-          defaultValue={eventType ?? ""}
-          className="rounded-md border border-border bg-bg-card px-3 py-2"
-        >
-          <option value="">All events</option>
-          {EVENT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="rounded-md border border-border bg-bg-hover px-4 py-2 text-fg hover:bg-bg-card"
-        >
-          Filter
-        </button>
-        {(domain || eventType || q) && (
-          <Link
-            href="/logs"
-            className="text-fg-muted hover:text-fg text-xs underline"
+    <>
+      <PageHeader
+        title="Email Logs"
+        description="The 200 most recent messages and their latest event. Export includes every match."
+        actions={
+          <a
+            href={exportHref}
+            download
+            className="btn"
+            title="Download every message matching the applied filters as CSV, not just the 200 shown here"
           >
-            Clear
-          </Link>
-        )}
-        <a
-          href={exportHref}
-          download
-          className="ml-auto rounded-md border border-border bg-bg-card px-4 py-2 text-fg-muted hover:bg-bg-hover hover:text-fg"
-          title="Download every message matching the applied filters as CSV, not just the 200 shown here"
-        >
-          Export CSV
-        </a>
-      </form>
+            <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10" />
+            </svg>
+            Export CSV
+          </a>
+        }
+      />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
-            <tr>
-              <th className="px-4 py-3 text-left">Sent</th>
-              <th className="px-4 py-3 text-left">From</th>
-              <th className="px-4 py-3 text-left">To</th>
-              <th className="px-4 py-3 text-left">Subject</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-8 text-center text-fg-muted"
-                >
-                  No messages match these filters.
-                </td>
-              </tr>
-            )}
-            {rows.map((r) => (
-              <tr
-                key={r.messageId}
-                className="border-t border-border-subtle hover:bg-bg-hover/40"
-              >
-                <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
-                  {timeAgo(r.sentAt)}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs">
-                  {r.fromAddress}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs">
-                  {r.toAddresses[0] && (
-                    <Link
-                      href={recipientHref(r.toAddresses[0])}
-                      className="hover:text-accent hover:underline"
-                    >
-                      {r.toAddresses[0]}
-                    </Link>
-                  )}
-                  {r.toAddresses.length > 1 && (
-                    <span className="text-fg-subtle">
-                      {" "}
-                      +{r.toAddresses.length - 1}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 max-w-xs truncate">
-                  {r.subject ?? (
-                    <span className="text-fg-subtle">(no subject)</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <EventBadge type={r.lastEventType} bounceType={r.lastBounceType} />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link
-                    href={`/logs/${encodeURIComponent(r.messageId)}`}
-                    className="text-accent text-xs hover:underline"
-                  >
-                    Details →
-                  </Link>
-                </td>
-              </tr>
+      <div className="space-y-3">
+        <form method="GET" className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-80">
+            <svg viewBox="0 0 16 16" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" />
+              <path d="m10.5 10.5 3 3" />
+            </svg>
+            <input
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Search subject, sender, recipient"
+              className="input w-full pl-8"
+            />
+          </div>
+          <select name="domain" defaultValue={domain ?? ""} className="select" aria-label="Sending domain">
+            <option value="">All domains</option>
+            {domains.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+          <select name="event" defaultValue={eventType ?? ""} className="select" aria-label="Latest event">
+            <option value="">Any status</option>
+            {EVENT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="btn">
+            Apply
+          </button>
+          {filtered && (
+            <Link href="/logs" className="px-1 text-xs text-fg-subtle hover:text-fg">
+              Clear filters
+            </Link>
+          )}
+        </form>
+
+        <div className="card overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th className="w-24">Sent</th>
+                <th>Subject</th>
+                <th className="w-32">Status</th>
+                <th>To</th>
+                <th>From</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-fg-muted">
+                    {filtered ? "No messages match these filters." : "No messages yet."}
+                  </td>
+                </tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.messageId}>
+                  <td
+                    className="whitespace-nowrap font-mono text-xs text-fg-subtle"
+                    title={r.sentAt.toLocaleString()}
+                  >
+                    {timeAgo(r.sentAt)}
+                  </td>
+                  <td className="max-w-[22rem]">
+                    <Link
+                      href={`/logs/${encodeURIComponent(r.messageId)}`}
+                      className="block truncate text-fg hover:text-accent"
+                      title={r.subject ?? undefined}
+                    >
+                      {r.subject ?? <span className="text-fg-subtle">(no subject)</span>}
+                    </Link>
+                  </td>
+                  <td>
+                    <EventBadge type={r.lastEventType} bounceType={r.lastBounceType} />
+                  </td>
+                  <td className="whitespace-nowrap font-mono text-xs">
+                    {r.toAddresses[0] && (
+                      <Link
+                        href={recipientHref(r.toAddresses[0])}
+                        className="text-fg-muted hover:text-accent"
+                      >
+                        {r.toAddresses[0]}
+                      </Link>
+                    )}
+                    {r.toAddresses.length > 1 && (
+                      <span className="ml-1.5 text-fg-subtle">+{r.toAddresses.length - 1}</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap font-mono text-xs text-fg-subtle">
+                    {r.fromAddress}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

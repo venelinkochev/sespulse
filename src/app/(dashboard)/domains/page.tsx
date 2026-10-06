@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getDomainStats, type Range } from "@/lib/queries";
 import { RangeTabs } from "@/components/RangeTabs";
+import { PageHeader } from "@/components/PageHeader";
+import { RateBar } from "@/components/RateBar";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +12,10 @@ function parseRange(v: string | string[] | undefined): Range {
 }
 
 const fmt = (n: number) => n.toLocaleString();
-const pct = (n: number) => `${n.toFixed(2)}%`;
 
-function rateClass(n: number, kind: "delivery" | "bounce" | "open") {
-  if (kind === "delivery")
-    return n >= 95 ? "text-accent-green" : n >= 85 ? "text-accent-yellow" : "text-accent-red";
-  if (kind === "bounce")
-    return n >= 5 ? "text-accent-red" : n >= 2 ? "text-accent-yellow" : "text-fg-muted";
-  return "text-fg";
-}
+// Same thresholds as the Overview page.
+const deliveryTone = (n: number) => (n >= 95 ? "good" : n >= 85 ? "warn" : "bad");
+const bounceTone = (n: number) => (n >= 5 ? "bad" : n >= 2 ? "warn" : "good");
 
 export default async function DomainsPage({
   searchParams,
@@ -30,93 +27,69 @@ export default async function DomainsPage({
   const rows = await getDomainStats(range);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Domains</h1>
-          <p className="text-sm text-fg-muted">
-            Delivery health grouped by sending domain.
-          </p>
-        </div>
-        <RangeTabs current={range} basePath="/domains" />
-      </div>
+    <>
+      <PageHeader
+        title="Domains"
+        description="Delivery health per sending domain. Bounce bars fill at 10%, where SES may pause sending."
+        actions={<RangeTabs current={range} basePath="/domains" />}
+      />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
+      <div className="card overflow-x-auto">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left">Domain</th>
-              <th className="px-4 py-3 text-right">Sent</th>
-              <th className="px-4 py-3 text-right">Delivery</th>
-              <th className="px-4 py-3 text-right">Bounce</th>
-              <th className="px-4 py-3 text-right">Complaints</th>
-              <th className="px-4 py-3 text-right">Open</th>
-              <th className="px-4 py-3 text-right">Click</th>
-              <th className="px-4 py-3" />
+              <th>Domain</th>
+              <th className="!text-right">Sent</th>
+              <th className="!text-right">Delivered</th>
+              <th className="!text-right">Bounced</th>
+              <th className="!text-right">Complaints</th>
+              <th className="!text-right">Opened</th>
+              <th className="!text-right">Clicks</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={8}
-                  className="px-4 py-8 text-center text-fg-muted"
-                >
+                <td colSpan={7} className="py-12 text-center text-fg-muted">
                   No data in this range.
                 </td>
               </tr>
             )}
             {rows.map((r) => (
-              <tr
-                key={r.domain}
-                className="border-t border-border-subtle hover:bg-bg-hover/40"
-              >
-                <td className="px-4 py-3 font-medium">{r.domain}</td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {fmt(r.sent)}
-                </td>
-                <td
-                  className={`px-4 py-3 text-right font-mono ${rateClass(
-                    r.deliveryRate,
-                    "delivery"
-                  )}`}
-                >
-                  {pct(r.deliveryRate)}
-                </td>
-                <td
-                  className={`px-4 py-3 text-right font-mono ${rateClass(
-                    r.bounceRate,
-                    "bounce"
-                  )}`}
-                >
-                  {pct(r.bounceRate)}{" "}
-                  <span className="text-fg-subtle">
-                    ({fmt(r.bounced)})
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {fmt(r.complained)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {pct(r.openRate)}{" "}
-                  <span className="text-fg-subtle">({fmt(r.opened)})</span>
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {fmt(r.clicked)}
-                </td>
-                <td className="px-4 py-3 text-right">
+              <tr key={r.domain}>
+                <td>
                   <Link
                     href={`/logs?domain=${encodeURIComponent(r.domain)}`}
-                    className="text-accent text-xs hover:underline"
+                    className="font-medium text-fg hover:text-accent"
+                    title="View logs for this domain"
                   >
-                    View logs →
+                    {r.domain}
                   </Link>
                 </td>
+                <td className="text-right font-mono text-[13px]">{fmt(r.sent)}</td>
+                <td>
+                  <RateBar value={r.deliveryRate} tone={deliveryTone(r.deliveryRate)} />
+                </td>
+                <td>
+                  <RateBar value={r.bounceRate} scaleMax={10} tone={bounceTone(r.bounceRate)} />
+                  <div className="mt-0.5 text-right font-mono text-2xs text-fg-subtle">
+                    {fmt(r.hardBounced)} hard · {fmt(r.softBounced)} soft
+                  </div>
+                </td>
+                <td
+                  className={`text-right font-mono text-[13px] ${r.complained > 0 ? "text-accent-red" : "text-fg-subtle"}`}
+                >
+                  {fmt(r.complained)}
+                </td>
+                <td>
+                  <RateBar value={r.openRate} tone="neutral" />
+                </td>
+                <td className="text-right font-mono text-[13px] text-fg-muted">{fmt(r.clicked)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

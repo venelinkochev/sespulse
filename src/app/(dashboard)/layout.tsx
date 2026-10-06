@@ -1,8 +1,13 @@
-import Link from "next/link";
 import { isAuthEnabled } from "@/lib/session";
 import { logoutAction } from "../login/actions";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { WorkerStatus } from "@/components/WorkerStatus";
+import {
+  WorkerStatus,
+  WorkerStatusCompact,
+  getWorkerState,
+} from "@/components/WorkerStatus";
+import { Logo } from "@/components/Logo";
+import { Nav } from "@/components/Nav";
 
 function refreshIntervalMs(): number {
   const raw = process.env.DASHBOARD_REFRESH_SECONDS;
@@ -12,59 +17,56 @@ function refreshIntervalMs(): number {
   return Math.round(n * 1000);
 }
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const refreshMs = refreshIntervalMs();
+  const worker = await getWorkerState();
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 border-r border-border bg-bg-subtle p-5 flex flex-col">
-        <div className="mb-8 flex items-center gap-2">
-          <div className="h-7 w-7 rounded-md bg-accent/20 ring-1 ring-accent/40 flex items-center justify-center text-accent text-sm font-bold">
-            S
+    <div className="md:flex md:min-h-screen">
+      {/* Sidebar on desktop, top bar on small screens */}
+      <aside className="sticky top-0 z-10 border-b border-border bg-bg-subtle/95 backdrop-blur md:h-screen md:w-56 md:shrink-0 md:border-b-0 md:border-r">
+        <div className="flex h-full flex-col gap-3 px-4 py-3 md:gap-0 md:px-3 md:py-5">
+          <div className="flex items-center justify-between md:mb-7 md:px-2.5">
+            <Logo />
+            <div className="flex items-center gap-4 md:hidden">
+              <WorkerStatusCompact state={worker} />
+              {isAuthEnabled() && (
+                <form action={logoutAction}>
+                  <button type="submit" className="text-xs text-fg-subtle hover:text-fg">
+                    Sign out
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
-          <div className="font-semibold tracking-tight">SESPulse</div>
+          <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:overflow-visible md:px-0">
+            <Nav />
+          </div>
+          <div className="mt-auto hidden space-y-3 border-t border-border-subtle px-2.5 pt-4 md:block">
+            <div className="eyebrow">System</div>
+            <WorkerStatus state={worker} />
+            {refreshMs > 0 && (
+              <AutoRefresh
+                intervalMs={refreshMs}
+                disabledOn={["/logs", "/recipients/"]}
+              />
+            )}
+            {isAuthEnabled() && (
+              <form action={logoutAction}>
+                <button type="submit" className="text-xs text-fg-subtle hover:text-fg">
+                  Sign out
+                </button>
+              </form>
+            )}
+          </div>
         </div>
-        <nav className="flex flex-col gap-1 text-sm">
-          <NavLink href="/" label="Overview" />
-          <NavLink href="/domains" label="Domains" />
-          <NavLink href="/logs" label="Email Logs" />
-          <NavLink href="/recipients" label="Recipients" />
-        </nav>
-        <div className="mt-10 space-y-3">
-          <WorkerStatus />
-          {refreshMs > 0 && (
-            <AutoRefresh
-              intervalMs={refreshMs}
-              disabledOn={["/logs", "/recipients/"]}
-            />
-          )}
-        </div>
-        {isAuthEnabled() && (
-          <form action={logoutAction} className="mt-auto pt-6">
-            <button
-              type="submit"
-              className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-xs text-fg-muted hover:bg-bg-hover hover:text-fg transition"
-            >
-              Sign out
-            </button>
-          </form>
-        )}
       </aside>
-      <main className="flex-1 p-8 max-w-[1400px]">{children}</main>
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-10 md:py-8">
+        <div className="mx-auto max-w-[1280px] space-y-8">{children}</div>
+      </main>
     </div>
-  );
-}
-
-function NavLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="rounded-md px-3 py-2 text-fg-muted hover:bg-bg-hover hover:text-fg transition"
-    >
-      {label}
-    </Link>
   );
 }

@@ -5,6 +5,7 @@ import {
   type Range,
 } from "@/lib/queries";
 import { RangeTabs } from "@/components/RangeTabs";
+import { PageHeader, SectionTitle } from "@/components/PageHeader";
 import { timeAgo } from "@/lib/time";
 import { recipientHref } from "@/lib/address";
 
@@ -38,81 +39,68 @@ export default async function RecipientsPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Recipients</h1>
-        <p className="text-sm text-fg-muted">
-          Look up everything sent to an address, or review addresses that are
-          bouncing or complaining.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Recipients"
+        description="Look up everything sent to an address, or review the ones that are hurting your reputation."
+      />
 
-      <form method="GET" className="flex flex-wrap items-center gap-3 text-sm">
-        <input
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Search recipient address…"
-          className="w-80 rounded-md border border-border bg-bg-card px-3 py-2 placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-        />
+      <form method="GET" className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-80">
+          <svg viewBox="0 0 16 16" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="m10.5 10.5 3 3" />
+          </svg>
+          <input
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Find a recipient address"
+            className="input w-full pl-8"
+          />
+        </div>
         <input type="hidden" name="range" value={range} />
-        <button
-          type="submit"
-          className="rounded-md border border-border bg-bg-hover px-4 py-2 text-fg hover:bg-bg-card"
-        >
+        <button type="submit" className="btn">
           Search
         </button>
         {q && (
-          <Link
-            href={`/recipients?range=${range}`}
-            className="text-fg-muted hover:text-fg text-xs underline"
-          >
+          <Link href={`/recipients?range=${range}`} className="px-1 text-xs text-fg-subtle hover:text-fg">
             Clear
           </Link>
         )}
       </form>
 
       {matches && (
-        <section className="space-y-3">
-          <h2 className="text-sm uppercase tracking-wide text-fg-subtle">
-            Matching recipients
-          </h2>
-          <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
+        <section>
+          <SectionTitle description={`${matches.length === 50 ? "First 50" : matches.length} match${matches.length === 1 ? "" : "es"} for “${q}”`}>
+            Search results
+          </SectionTitle>
+          <div className="card overflow-x-auto">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left">Address</th>
-                  <th className="px-4 py-3 text-right">Messages</th>
-                  <th className="px-4 py-3 text-left">Last sent</th>
-                  <th className="px-4 py-3" />
+                  <th>Address</th>
+                  <th className="!text-right">Messages</th>
+                  <th className="!text-right">Last sent</th>
                 </tr>
               </thead>
               <tbody>
                 {matches.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-fg-muted">
+                    <td colSpan={3} className="py-10 text-center text-fg-muted">
                       No recipients match “{q}”.
                     </td>
                   </tr>
                 )}
                 {matches.map((r) => (
-                  <tr
-                    key={r.address}
-                    className="border-t border-border-subtle hover:bg-bg-hover/40"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs">{r.address}</td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {fmt(r.messages)}
-                    </td>
-                    <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
-                      {timeAgo(r.lastSentAt)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={recipientHref(r.address)}
-                        className="text-accent text-xs hover:underline"
-                      >
-                        History →
+                  <tr key={r.address}>
+                    <td className="font-mono text-xs">
+                      <Link href={recipientHref(r.address)} className="text-fg hover:text-accent">
+                        {r.address}
                       </Link>
+                    </td>
+                    <td className="text-right font-mono text-[13px]">{fmt(r.messages)}</td>
+                    <td className="whitespace-nowrap text-right font-mono text-xs text-fg-subtle">
+                      {timeAgo(r.lastSentAt)}
                     </td>
                   </tr>
                 ))}
@@ -122,87 +110,55 @@ export default async function RecipientsPage({
         </section>
       )}
 
-      <section className="space-y-3">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-sm uppercase tracking-wide text-fg-subtle">
-              Problem recipients
-            </h2>
-            <p className="text-xs text-fg-muted mt-1">
-              Addresses that bounced or complained. Complaints and hard bounces
-              first: keep sending to these and your SES reputation suffers.
-            </p>
-          </div>
-          <RangeTabs current={range} basePath="/recipients" />
-        </div>
-        <div className="overflow-hidden rounded-lg border border-border bg-bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-bg-subtle text-xs uppercase tracking-wide text-fg-subtle">
+      <section>
+        <SectionTitle
+          description="Addresses that bounced or complained, complaints and hard bounces first. Keep mailing these and your SES reputation suffers."
+          actions={<RangeTabs current={range} basePath="/recipients" />}
+        >
+          Problem recipients
+        </SectionTitle>
+        <div className="card overflow-x-auto">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left">Address</th>
-                <th className="px-4 py-3 text-left">Sent from</th>
-                <th className="px-4 py-3 text-right">Complaints</th>
-                <th className="px-4 py-3 text-right">Hard</th>
-                <th className="px-4 py-3 text-right">Soft</th>
-                <th className="px-4 py-3 text-left">Last reason</th>
-                <th className="px-4 py-3 text-left">Last seen</th>
-                <th className="px-4 py-3" />
+                <th>Address</th>
+                <th>Sent from</th>
+                <th className="!text-right" title="Spam complaints">Compl.</th>
+                <th className="!text-right">Hard</th>
+                <th className="!text-right">Soft</th>
+                <th>Last reason</th>
+                <th className="!text-right">Last seen</th>
               </tr>
             </thead>
             <tbody>
               {problems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-fg-muted">
+                  <td colSpan={7} className="py-12 text-center text-fg-muted">
                     No bounces or complaints in this range.
                   </td>
                 </tr>
               )}
               {problems.map((r) => (
-                <tr
-                  key={r.address}
-                  className="border-t border-border-subtle hover:bg-bg-hover/40"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">{r.address}</td>
-                  <td className="px-4 py-3 text-xs">
+                <tr key={r.address}>
+                  <td className="font-mono text-xs">
+                    <Link href={recipientHref(r.address)} className="text-fg hover:text-accent">
+                      {r.address}
+                    </Link>
+                  </td>
+                  <td className="text-xs">
                     <SendingDomains domains={r.fromDomains} address={r.address} />
                   </td>
+                  <Count n={r.complaints} tone="text-accent-red" />
+                  <Count n={r.hardBounces} tone="text-accent-red" />
+                  <Count n={r.softBounces} tone="text-accent-yellow" />
                   <td
-                    className={`px-4 py-3 text-right font-mono ${
-                      r.complaints > 0 ? "text-accent-red" : "text-fg-subtle"
-                    }`}
-                  >
-                    {fmt(r.complaints)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-mono ${
-                      r.hardBounces > 0 ? "text-accent-red" : "text-fg-subtle"
-                    }`}
-                  >
-                    {fmt(r.hardBounces)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-mono ${
-                      r.softBounces > 0 ? "text-accent-yellow" : "text-fg-subtle"
-                    }`}
-                  >
-                    {fmt(r.softBounces)}
-                  </td>
-                  <td
-                    className="px-4 py-3 max-w-sm truncate font-mono text-xs text-fg-muted"
+                    className="max-w-[18rem] truncate font-mono text-2xs text-fg-subtle"
                     title={r.lastDiagnostic ?? undefined}
                   >
                     {r.lastDiagnostic ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
+                  <td className="whitespace-nowrap text-right font-mono text-xs text-fg-subtle">
                     {timeAgo(r.lastAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={recipientHref(r.address)}
-                      className="text-accent text-xs hover:underline"
-                    >
-                      History →
-                    </Link>
                   </td>
                 </tr>
               ))}
@@ -210,7 +166,15 @@ export default async function RecipientsPage({
           </table>
         </div>
       </section>
-    </div>
+    </>
+  );
+}
+
+function Count({ n, tone }: { n: number; tone: string }) {
+  return (
+    <td className={`text-right font-mono text-[13px] ${n > 0 ? tone : "text-fg-subtle/60"}`}>
+      {n > 0 ? n.toLocaleString() : "·"}
+    </td>
   );
 }
 
@@ -231,12 +195,12 @@ function SendingDomains({
         <Link
           key={d}
           href={`/logs?${new URLSearchParams({ domain: d, q: address })}`}
-          className="text-fg-muted hover:text-accent hover:underline whitespace-nowrap"
+          className="whitespace-nowrap text-fg-muted hover:text-accent"
         >
           {d}
         </Link>
       ))}
-      {hidden > 0 && <span className="text-fg-subtle">+{hidden} more</span>}
+      {hidden > 0 && <span className="text-2xs text-fg-subtle">+{hidden} more</span>}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { loginAction } from "./actions";
+import { LogoMark } from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -12,62 +13,60 @@ export default async function LoginPage({
   const next = sp.next ?? "/";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg px-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex items-center justify-center gap-2">
-          <div className="h-9 w-9 rounded-md bg-accent/20 ring-1 ring-accent/40 flex items-center justify-center text-accent font-bold">
-            S
-          </div>
-          <div className="text-lg font-semibold tracking-tight">SESPulse</div>
+    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
+      <div className="w-full max-w-[22rem]">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <LogoMark className="h-10 w-10" />
+          <h1 className="mt-4 text-lg font-semibold tracking-tight">
+            Sign in to SESPulse
+          </h1>
+          <p className="mt-1 text-sm text-fg-muted">
+            Amazon SES delivery monitoring
+          </p>
         </div>
 
-        <form
-          action={loginAction}
-          className="rounded-lg border border-border bg-bg-card p-6 space-y-4"
-        >
-          <h1 className="text-lg font-semibold">Sign in</h1>
+        <form action={loginAction} className="card p-6">
+          {/* Next injects hidden server-action inputs at the start of the
+              form, so spacing lives on this wrapper, not the form. */}
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-xs font-medium text-fg-muted">
+                Username
+              </span>
+              <input
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                autoFocus
+                className="input mt-1.5 w-full"
+              />
+            </label>
 
+            <label className="block">
+              <span className="text-xs font-medium text-fg-muted">
+                Password
+              </span>
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="input mt-1.5 w-full"
+              />
+            </label>
+
+            {error && (
+              <div className="rounded-md border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-sm text-accent-red">
+                Invalid username or password.
+              </div>
+            )}
+
+            <button type="submit" className="btn-primary w-full">
+              Sign in
+            </button>
+          </div>
           <input type="hidden" name="next" value={next} />
-
-          <label className="block">
-            <span className="text-xs uppercase tracking-wide text-fg-subtle">
-              Username
-            </span>
-            <input
-              name="username"
-              type="text"
-              autoComplete="username"
-              required
-              autoFocus
-              className="mt-1 w-full rounded-md border border-border bg-bg-subtle px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs uppercase tracking-wide text-fg-subtle">
-              Password
-            </span>
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="mt-1 w-full rounded-md border border-border bg-bg-subtle px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-            />
-          </label>
-
-          {error && (
-            <div className="rounded-md border border-accent-red/40 bg-accent-red/10 px-3 py-2 text-sm text-accent-red">
-              Invalid username or password.
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-[#0a0d18] hover:opacity-90"
-          >
-            Sign in
-          </button>
         </form>
       </div>
     </div>

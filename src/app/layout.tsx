@@ -1,5 +1,20 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+
+// Self-hosted at build time by next/font; no request to Google at runtime.
+const sans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "SESPulse",
@@ -10,7 +25,7 @@ export const metadata: Metadata = {
 
 // Matches the app background so mobile browser chrome blends in.
 export const viewport: Viewport = {
-  themeColor: "#0b0d12",
+  themeColor: "#0a0a0b",
 };
 
 export default function RootLayout({
@@ -19,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-bg text-fg font-sans antialiased">
+    <html lang="en" className={`dark ${sans.variable} ${mono.variable}`}>
+      <body className="min-h-screen bg-bg font-sans text-fg antialiased">
         {children}
       </body>
     </html>
