@@ -16,7 +16,7 @@ export function RangeTabs({
     <div
       role="tablist"
       aria-label="Time range"
-      className="inline-flex rounded-md border border-border bg-bg-inset p-0.5 font-mono text-xs"
+      className="inline-flex rounded-md border border-border bg-bg-inset p-0.5 text-xs font-medium"
     >
       {ranges.map((r) => {
         const active = r.value === current;
@@ -30,7 +30,7 @@ export function RangeTabs({
             className={`rounded px-3 py-1.5 transition-colors ${
               active
                 ? "bg-bg-hover text-fg shadow-[inset_0_0_0_1px_rgb(var(--border-strong))]"
-                : "text-fg-subtle hover:text-fg"
+                : "text-fg-muted hover:text-fg"
             }`}
           >
             {r.label}

@@ -35,7 +35,7 @@ export default async function DashboardLayout({
               <WorkerStatusCompact state={worker} />
               {isAuthEnabled() && (
                 <form action={logoutAction}>
-                  <button type="submit" className="text-xs text-fg-subtle hover:text-fg">
+                  <button type="submit" className="text-xs text-fg-muted hover:text-fg">
                     Sign out
                   </button>
                 </form>
@@ -56,7 +56,7 @@ export default async function DashboardLayout({
             )}
             {isAuthEnabled() && (
               <form action={logoutAction}>
-                <button type="submit" className="text-xs text-fg-subtle hover:text-fg">
+                <button type="submit" className="text-xs text-fg-muted hover:text-fg">
                   Sign out
                 </button>
               </form>

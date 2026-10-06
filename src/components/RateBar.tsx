@@ -20,7 +20,7 @@ export function RateBar({
   const width = Math.min(100, (value / scaleMax) * 100);
   return (
     <div className="flex items-center justify-end gap-2.5">
-      <span className="num font-mono text-[13px]">{value.toFixed(1)}%</span>
+      <span className="num">{value.toFixed(1)}%</span>
       <span className="hidden h-1 w-12 overflow-hidden rounded-full bg-bg-inset ring-1 ring-inset ring-border-subtle sm:block">
         <span
           className={`block h-full rounded-full ${fill}`}

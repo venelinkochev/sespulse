@@ -145,7 +145,7 @@ export default async function OverviewPage({
           <p className="mt-1">
             Make sure SES is publishing to your SNS topic and the topic is
             subscribed to the SQS queue in{" "}
-            <code className="rounded bg-bg-inset px-1.5 py-0.5 font-mono text-xs text-fg">
+            <code className="rounded bg-bg-inset px-1.5 py-0.5 font-mono text-[12px] text-fg">
               SES_EVENTS_QUEUE_URL
             </code>
             . See the README for the full setup.

@@ -35,10 +35,8 @@ export function Metric({
         {dotCls && <span className={`h-1.5 w-1.5 rounded-full ${dotCls}`} />}
         {label}
       </div>
-      <div className="num mt-2 font-mono text-2xl font-medium tracking-tight">
-        {value}
-      </div>
-      {sub && <div className="mt-1 truncate text-xs text-fg-subtle">{sub}</div>}
+      <div className="t-metric mt-2">{value}</div>
+      {sub && <div className="t-caption mt-1 truncate">{sub}</div>}
     </div>
   );
 }

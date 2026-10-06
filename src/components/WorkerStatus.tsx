@@ -79,10 +79,10 @@ export function WorkerStatus({ state }: { state: WorkerState }) {
           <path d="M0 10h120" className="stroke-accent-red" strokeWidth="1.5" />
         )}
       </svg>
-      <div className={`text-xs font-medium ${state.live ? "text-fg" : "text-accent-red"}`}>
+      <div className={`text-ui font-medium ${state.live ? "text-fg" : "text-accent-red"}`}>
         {state.label}
       </div>
-      <div className="mt-0.5 truncate text-2xs text-fg-subtle">{state.detail}</div>
+      <div className="t-caption mt-0.5 truncate">{state.detail}</div>
     </div>
   );
 }

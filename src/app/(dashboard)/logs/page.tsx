@@ -108,7 +108,7 @@ export default async function LogsPage({
             Apply
           </button>
           {filtered && (
-            <Link href="/logs" className="px-1 text-xs text-fg-subtle hover:text-fg">
+            <Link href="/logs" className="px-1 text-xs text-fg-muted hover:text-fg">
               Clear filters
             </Link>
           )}
@@ -136,7 +136,7 @@ export default async function LogsPage({
               {rows.map((r) => (
                 <tr key={r.messageId}>
                   <td
-                    className="whitespace-nowrap font-mono text-xs text-fg-subtle"
+                    className="num whitespace-nowrap text-fg-muted"
                     title={r.sentAt.toLocaleString()}
                   >
                     {timeAgo(r.sentAt)}
@@ -153,7 +153,7 @@ export default async function LogsPage({
                   <td>
                     <EventBadge type={r.lastEventType} bounceType={r.lastBounceType} />
                   </td>
-                  <td className="whitespace-nowrap font-mono text-xs">
+                  <td className="whitespace-nowrap">
                     {r.toAddresses[0] && (
                       <Link
                         href={recipientHref(r.toAddresses[0])}
@@ -163,10 +163,10 @@ export default async function LogsPage({
                       </Link>
                     )}
                     {r.toAddresses.length > 1 && (
-                      <span className="ml-1.5 text-fg-subtle">+{r.toAddresses.length - 1}</span>
+                      <span className="num ml-1.5 text-fg-subtle">+{r.toAddresses.length - 1}</span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap font-mono text-xs text-fg-subtle">
+                  <td className="whitespace-nowrap text-fg-subtle">
                     {r.fromAddress}
                   </td>
                 </tr>

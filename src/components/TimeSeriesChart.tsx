@@ -15,19 +15,19 @@ export function TimeSeriesChart({
     <div className="card p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-sm font-semibold">Send volume</h2>
-          <p className="mt-0.5 text-xs text-fg-muted">
+          <h2 className="t-section">Send volume</h2>
+          <p className="t-desc mt-0.5">
             {range === "24h" ? "Per hour" : "Per day"}, by outcome
           </p>
         </div>
-        <div className="flex items-center gap-4 text-xs text-fg-muted">
+        <div className="flex items-center gap-4 text-ui text-fg-muted">
           <Legend swatch="bg-accent" label="Delivered" />
           <Legend swatch="bg-accent-red" label="Bounced" />
           <Legend swatch="bg-fg-subtle/50" label="Other" />
         </div>
       </div>
       {empty ? (
-        <div className="flex h-[220px] items-center justify-center rounded-md border border-dashed border-border text-sm text-fg-subtle">
+        <div className="flex h-[220px] items-center justify-center rounded-md border border-dashed border-border text-ui text-fg-muted">
           No send activity in this range yet.
         </div>
       ) : (
@@ -37,6 +37,8 @@ export function TimeSeriesChart({
   );
 }
 
+// Bars and gridlines are SVG stretched to the container; axis labels are
+// HTML so they stay a real 12px at any width instead of scaling with it.
 function Chart({
   data,
   range,
@@ -45,25 +47,15 @@ function Chart({
   range: Range;
 }) {
   const max = Math.max(...data.map((d) => d.sent), 1);
+  const niceMax = niceCeil(max);
+  const ticks = [1, 0.5, 0];
 
   const W = 1000;
-  const H = 220;
-  const padL = 40;
-  const padR = 4;
-  const padT = 8;
-  const padB = 26;
-  const chartW = W - padL - padR;
-  const chartH = H - padT - padB;
-  const slotW = chartW / data.length;
+  const H = 200;
+  const slotW = W / data.length;
   const gap = Math.min(6, slotW * 0.3);
   const barW = Math.max(slotW - gap, 1.5);
-
-  const niceMax = niceCeil(max);
-  const ticks = [0, 0.5, 1].map((t) => ({
-    y: padT + chartH - chartH * t,
-    label: Math.round(niceMax * t).toLocaleString(),
-  }));
-  const yOf = (n: number) => (n / niceMax) * chartH;
+  const yOf = (n: number) => (n / niceMax) * H;
 
   const fmtX = (d: Date) =>
     range === "24h"
@@ -78,77 +70,85 @@ function Chart({
   const labelEvery = Math.max(1, Math.ceil(data.length / 7));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
-      {ticks.map((t, i) => (
-        <g key={i}>
-          <line
-            x1={padL}
-            x2={W - padR}
-            y1={t.y}
-            y2={t.y}
-            className="stroke-border-subtle"
-            vectorEffect="non-scaling-stroke"
-          />
-          <text
-            x={padL - 8}
-            y={t.y + 3}
-            className="fill-fg-subtle font-mono"
-            fontSize="10"
-            textAnchor="end"
+    <div className="flex gap-3">
+      {/* Y axis */}
+      <div className="relative h-[200px] w-10 shrink-0 text-right text-xs text-fg-subtle">
+        {ticks.map((t) => (
+          <span
+            key={t}
+            className="num absolute right-0 -translate-y-1/2"
+            style={{ top: `${(1 - t) * 100}%` }}
           >
-            {t.label}
-          </text>
-        </g>
-      ))}
+            {Math.round(niceMax * t).toLocaleString()}
+          </span>
+        ))}
+      </div>
 
-      {data.map((d, i) => {
-        const x = padL + i * slotW + gap / 2;
-        const base = padT + chartH;
-        const delivered = Math.min(d.delivered, d.sent);
-        const bounced = Math.min(d.bounced, d.sent - delivered);
-        const other = Math.max(0, d.sent - delivered - bounced);
-        const hDel = yOf(delivered);
-        const hBnc = yOf(bounced);
-        const hOth = yOf(other);
-        const isLabel = i % labelEvery === 0;
-        const bounceRate = d.sent ? ((d.bounced / d.sent) * 100).toFixed(1) : "0";
-        return (
-          <g key={i}>
-            <title>
-              {`${fmtTooltip(d.bucket)}\n${d.sent.toLocaleString()} sent · ${d.delivered.toLocaleString()} delivered · ${d.bounced.toLocaleString()} bounced (${bounceRate}%)`}
-            </title>
-            {/* Full-height hover target */}
-            <rect x={x} y={padT} width={barW} height={chartH} className="fill-transparent hover:fill-fg/[0.04]" />
-            {delivered > 0 && (
-              <rect x={x} y={base - hDel} width={barW} height={hDel} className="fill-accent/80" />
-            )}
-            {bounced > 0 && (
-              <rect x={x} y={base - hDel - hBnc} width={barW} height={hBnc} className="fill-accent-red" />
-            )}
-            {other > 0 && (
-              <rect
-                x={x}
-                y={base - hDel - hBnc - hOth}
-                width={barW}
-                height={hOth}
-                className="fill-fg-subtle/40"
-              />
-            )}
-            {isLabel && (
-              <text
-                x={x + barW / 2}
-                y={H - 6}
-                className="fill-fg-subtle font-mono"
-                fontSize="10"
-                textAnchor="middle"
+      <div className="min-w-0 flex-1">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="block h-[200px] w-full overflow-visible"
+        >
+          {ticks.map((t) => (
+            <line
+              key={t}
+              x1={0}
+              x2={W}
+              y1={H - H * t}
+              y2={H - H * t}
+              className="stroke-border"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {data.map((d, i) => {
+            const x = i * slotW + gap / 2;
+            const delivered = Math.min(d.delivered, d.sent);
+            const bounced = Math.min(d.bounced, d.sent - delivered);
+            const other = Math.max(0, d.sent - delivered - bounced);
+            const hDel = yOf(delivered);
+            const hBnc = yOf(bounced);
+            const hOth = yOf(other);
+            const bounceRate = d.sent ? ((d.bounced / d.sent) * 100).toFixed(1) : "0";
+            return (
+              <g key={i}>
+                <title>
+                  {`${fmtTooltip(d.bucket)}\n${d.sent.toLocaleString()} sent · ${d.delivered.toLocaleString()} delivered · ${d.bounced.toLocaleString()} bounced (${bounceRate}%)`}
+                </title>
+                <rect x={x} y={0} width={barW} height={H} className="fill-transparent hover:fill-fg/[0.04]" />
+                {delivered > 0 && (
+                  <rect x={x} y={H - hDel} width={barW} height={hDel} className="fill-accent/80" />
+                )}
+                {bounced > 0 && (
+                  <rect x={x} y={H - hDel - hBnc} width={barW} height={hBnc} className="fill-accent-red" />
+                )}
+                {other > 0 && (
+                  <rect x={x} y={H - hDel - hBnc - hOth} width={barW} height={hOth} className="fill-fg-subtle/40" />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* X axis */}
+        <div className="relative mt-2 h-4 text-xs text-fg-subtle">
+          {data.map((d, i) =>
+            i % labelEvery === 0 ? (
+              <span
+                key={i}
+                // Every other label on narrow screens so dates don't collide.
+                className={`absolute -translate-x-1/2 whitespace-nowrap ${
+                  (i / labelEvery) % 2 === 1 ? "hidden sm:block" : ""
+                }`}
+                style={{ left: `${((i + 0.5) / data.length) * 100}%` }}
               >
                 {fmtX(d.bucket)}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+              </span>
+            ) : null
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -17,7 +17,7 @@
   --border: 37 37 42;
   --border-subtle: 27 27 31;
   --border-strong: 52 52 59;
-  --fg: 236 236 240;
+  --fg: 244 244 245;
   /* Contrast on --bg-card: muted 9.0:1, subtle 6.0:1 (WCAG AA needs 4.5:1). */
   --fg-muted: 180 180 190;
   --fg-subtle: 146 146 157;
@@ -39,7 +39,7 @@
     @apply border-border;
   }
   body {
-    font-feature-settings: "ss01", "cv01";
+    @apply text-sm;
   }
   ::selection {
     @apply bg-accent/30;
@@ -59,8 +59,32 @@
   .card {
     @apply rounded-lg border border-border bg-bg-card;
   }
+  /* Type scale (see tailwind.config.ts for sizes). */
+  .t-title {
+    @apply font-semibold;
+    font-size: 18px;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+  .t-section {
+    @apply text-sm font-semibold;
+  }
+  .t-desc {
+    @apply text-ui text-fg-muted;
+  }
+  .t-caption {
+    @apply text-xs text-fg-subtle;
+  }
+  .t-metric {
+    @apply font-mono font-medium;
+    font-size: 25px;
+    line-height: 32px;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Uppercase metric / column labels. */
   .eyebrow {
-    @apply text-2xs font-medium uppercase tracking-[0.08em] text-fg-subtle;
+    @apply text-2xs font-medium uppercase tracking-[0.06em] text-fg-muted;
   }
   .btn {
     @apply inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-bg-card px-3.5 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:bg-bg-hover hover:text-fg;
@@ -80,7 +104,7 @@
 
   /* Data tables */
   .data-table {
-    @apply w-full text-sm;
+    @apply w-full text-ui;
   }
   .data-table thead {
     @apply border-b border-border bg-bg-subtle/60;
