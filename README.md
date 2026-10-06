@@ -269,7 +269,7 @@ Columns:
 | `sent_at` | ISO 8601, UTC |
 | `message_id` | SES message ID. Open `/logs/<message_id>` for the full timeline |
 | `from_address`, `from_domain` | Sender |
-| `to_addresses` | All recipients, separated by `; ` |
+| `to_addresses` | All recipients, separated by `; `. Email addresses only: display names like `"Jane Doe" <jane@x.com>` are removed |
 | `subject` | |
 | `status` | Latest event type: `Delivery`, `Bounce`, `Open`, … |
 | `bounce_type` | `Permanent` / `Transient` / `Undetermined` when `status` is `Bounce` |

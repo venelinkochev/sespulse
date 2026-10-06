@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getDistinctDomains, getLogs } from "@/lib/queries";
 import { EventBadge } from "@/components/EventBadge";
 import { timeAgo } from "@/lib/time";
-import { recipientHref } from "@/lib/address";
+import { emailOnly, recipientHref } from "@/lib/address";
 import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -159,7 +159,7 @@ export default async function LogsPage({
                         href={recipientHref(r.toAddresses[0])}
                         className="text-fg-muted hover:text-accent"
                       >
-                        {r.toAddresses[0]}
+                        {emailOnly(r.toAddresses[0])}
                       </Link>
                     )}
                     {r.toAddresses.length > 1 && (
@@ -167,7 +167,7 @@ export default async function LogsPage({
                     )}
                   </td>
                   <td className="whitespace-nowrap text-fg-subtle">
-                    {r.fromAddress}
+                    {emailOnly(r.fromAddress)}
                   </td>
                 </tr>
               ))}
