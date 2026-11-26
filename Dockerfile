@@ -18,6 +18,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=app:app /app/.next/standalone ./
