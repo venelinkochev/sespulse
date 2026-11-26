@@ -129,17 +129,36 @@ async function handleNotification(
     .onConflictDoNothing({ target: events.snsMessageId });
 }
 
+// SNS also delivers plain-text notices to the queue, such as "Successfully
+// validated SNS topic for Amazon SES event publishing." when an event
+// destination is created. They are not events, and retrying them never helps.
+function parseJson(text: string): any {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 async function processSqsMessage(m: SqsMessage): Promise<boolean> {
   try {
     if (!m.Body) return true;
-    const outer = JSON.parse(m.Body);
+    const outer = parseJson(m.Body);
+    if (outer === undefined) {
+      console.warn("Skipping non-JSON message", m.MessageId, m.Body.slice(0, 80));
+      return true;
+    }
 
     // SNS-wrapped payload: { Type: "Notification", Message: "<json string>", MessageId: ... }
     let notif: SesNotification;
     let snsMessageId: string | undefined;
     if (outer.Type === "Notification" && typeof outer.Message === "string") {
-      notif = JSON.parse(outer.Message);
+      notif = parseJson(outer.Message);
       snsMessageId = outer.MessageId;
+      if (notif === undefined) {
+        console.warn("Skipping non-JSON SNS notification", outer.MessageId, outer.Message.slice(0, 80));
+        return true;
+      }
     } else if (outer.Type === "SubscriptionConfirmation") {
       console.warn(
         "Received SNS SubscriptionConfirmation in SQS. Confirm the subscription via the SubscribeURL:",
